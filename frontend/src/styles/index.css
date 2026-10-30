@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: auto; /* Fast instant scrolling */
+    background-color: #dad7cd;
+    color: #344e41;
+  }
+
+  body {
+    background-color: #dad7cd;
+    color: #344e41;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Sharp brutalist scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #dad7cd;
+    border-left: 2px solid #344e41;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #588157;
+    border: 2px solid #344e41;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a5a40;
+  }
+
+  /* Force instant rendering and eliminate sluggish transitions across interactive elements */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+}
+
+@layer utilities {
+  .brutal-border {
+    border: 2px solid #344e41;
+  }
+  .brutal-border-b {
+    border-bottom: 2px solid #344e41;
+  }
+  .brutal-border-t {
+    border-top: 2px solid #344e41;
+  }
+  .brutal-border-r {
+    border-right: 2px solid #344e41;
+  }
+  .brutal-border-l {
+    border-left: 2px solid #344e41;
+  }
+  .brutal-shadow {
+    box-shadow: 3px 3px 0px 0px #344e41;
+  }
+  .brutal-shadow-sm {
+    box-shadow: 2px 2px 0px 0px #344e41;
+  }
+  .brutal-shadow-lg {
+    box-shadow: 5px 5px 0px 0px #344e41;
+  }
+  .editorial-shadow {
+    box-shadow: 3px 3px 0px 0px #344e41;
+  }
+}
