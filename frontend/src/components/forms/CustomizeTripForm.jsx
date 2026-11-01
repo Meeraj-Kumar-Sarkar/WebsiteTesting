@@ -100,11 +100,38 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateStep(3)) {
-      setIsSubmitted(true);
+    if (!validateStep(3)) return;
+    try {
+      await fetch('http://localhost:5000/api/enquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          source: 'WEBSITE',
+          notes: [
+            `Destination: ${formData.destination}`,
+            formData.customDestinationNotes && `Notes: ${formData.customDestinationNotes}`,
+            `Start Date: ${formData.startDate}`,
+            `Duration: ${formData.duration}`,
+            `Travellers: ${formData.travellers}`,
+            `Budget/person: ${formData.budgetPerPerson}`,
+            `Accommodation: ${formData.accommodationTier}`,
+            `Activities: ${formData.activities.join(', ')}`,
+            formData.additionalNotes && `Additional: ${formData.additionalNotes}`,
+            `Contact Preference: ${formData.contactPreference}`,
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        }),
+      });
+    } catch {
+      // Backend may not be running in dev; still proceed to success state
     }
+    setIsSubmitted(true);
   };
 
   const handleReset = () => {
