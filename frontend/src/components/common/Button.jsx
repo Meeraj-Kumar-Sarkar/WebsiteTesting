@@ -15,32 +15,26 @@ export default function Button({
   disabled = false,
   ...props
 }) {
-  // Brutalist button base: sharp edges, solid 2px border, hard drop shadow, snappy active press
-  const baseStyles = "inline-flex items-center justify-center font-bold tracking-wide uppercase transition-none rounded-none border-2 border-[#344e41] focus:outline-none focus:ring-2 focus:ring-[#3a5a40] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-center select-none shadow-[2px_2px_0px_0px_#344e41] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#344e41] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none";
+  // Organic button base: softly rounded, natural colours, gentle hover lift
+  const baseStyles =
+    'inline-flex items-center justify-center font-semibold tracking-wide transition-all duration-200 ease-out rounded-organic focus:outline-none focus:ring-2 focus:ring-fern/40 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-center select-none hover:-translate-y-0.5 active:translate-y-0.5';
 
   const sizeStyles = {
-    sm: "px-3 py-1.5 text-xs font-mono",
-    md: "px-4 py-2 text-xs sm:text-sm font-mono",
-    lg: "px-6 py-3 text-sm sm:text-base font-mono",
+    sm: 'px-4 py-1.5 text-xs',
+    md: 'px-5 py-2.5 text-sm',
+    lg: 'px-7 py-3.5 text-base',
   };
 
   const variantStyles = {
-    // Primary hunter green
-    primary: "bg-[#3a5a40] hover:bg-[#344e41] text-white",
-    // Light neutral button
-    secondary: "bg-[#dad7cd] hover:bg-[#a3b18a] text-[#344e41]",
-    // Fern green accent
-    gold: "bg-[#588157] hover:bg-[#3a5a40] text-white",
-    // Sage green button
-    sage: "bg-[#a3b18a] hover:bg-[#dad7cd] text-[#344e41]",
-    // Darkest forest button
-    dark: "bg-[#344e41] hover:bg-[#3a5a40] text-[#dad7cd]",
-    // White stark card button
-    white: "bg-white hover:bg-[#dad7cd] text-[#344e41]",
-    // Outline white for dark hero backgrounds
-    outlineWhite: "bg-transparent text-white border-2 border-white shadow-[2px_2px_0px_0px_#ffffff] hover:bg-white hover:text-[#344e41]",
-    ghost: "bg-transparent border-transparent shadow-none hover:bg-[#a3b18a]/30 text-[#344e41]",
-    ivory: "bg-[#dad7cd] hover:bg-[#a3b18a] text-[#344e41]"
+    primary:      'bg-pine text-cream shadow-nature-sm hover:bg-fern hover:shadow-nature',
+    secondary:    'bg-beige text-soil border border-bark/30 shadow-nature-sm hover:bg-sage/30 hover:shadow-nature',
+    gold:         'bg-fern text-cream shadow-nature-sm hover:bg-pine hover:shadow-nature',
+    sage:         'bg-sage text-soil shadow-nature-sm hover:bg-sage/70 hover:shadow-nature',
+    dark:         'bg-soil text-cream shadow-nature-sm hover:bg-bark hover:shadow-nature',
+    white:        'bg-cream text-soil border border-bark/20 shadow-nature-sm hover:bg-beige hover:shadow-nature',
+    outlineWhite: 'bg-transparent text-cream border-2 border-cream/70 hover:bg-cream hover:text-soil',
+    ghost:        'bg-transparent border border-transparent hover:bg-sage/20 text-soil',
+    ivory:        'bg-cream text-soil border border-bark/20 shadow-nature-sm hover:bg-beige',
   };
 
   const content = (
@@ -53,22 +47,8 @@ export default function Button({
 
   const combinedClass = `${baseStyles} ${sizeStyles[size] || sizeStyles.md} ${variantStyles[variant] || variantStyles.primary} ${className}`;
 
-  if (to) {
-    return (
-      <Link to={to} className={combinedClass} {...props}>
-        {content}
-      </Link>
-    );
-  }
-
-  if (href) {
-    return (
-      <a href={href} className={combinedClass} {...props}>
-        {content}
-      </a>
-    );
-  }
-
+  if (to) return <Link to={to} className={combinedClass} {...props}>{content}</Link>;
+  if (href) return <a href={href} className={combinedClass} {...props}>{content}</a>;
   return (
     <button type={type} onClick={onClick} disabled={disabled} className={combinedClass} {...props}>
       {content}

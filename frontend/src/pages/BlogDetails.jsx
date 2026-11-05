@@ -1,21 +1,38 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Calendar, Clock, ArrowLeft, ArrowRight, Share2, Compass } from 'lucide-react';
+import { Calendar, Clock, ArrowLeft, ArrowRight, Compass } from 'lucide-react';
 import { blogPosts } from '../data/blogPosts';
 import { packages } from '../data/packages';
 import Button from '../components/common/Button';
+
+function useInView(threshold = 0.12) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold }
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, inView];
+}
 
 export default function BlogDetails() {
   const { slug } = useParams();
   const post = blogPosts.find((p) => p.slug === slug);
 
+  const [heroRef, heroInView] = useInView(0.08);
+  const [bodyRef, bodyInView] = useInView(0.08);
+
   if (!post) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center pt-24 pb-20 px-4 text-center font-mono">
-        <h2 className="font-serif text-3xl font-black uppercase text-[#344e41]">Article Not Found</h2>
-        <p className="text-xs text-[#344e41]/80 mt-2 mb-5">The story you are looking for does not exist or has been moved.</p>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center pt-24 pb-20 px-4 text-center">
+        <h2 className="font-serif text-3xl font-bold text-soil">Article not found</h2>
+        <p className="text-sm text-soil/70 mt-2 mb-5">The story you are looking for does not exist or has been moved.</p>
         <Button to="/blog" variant="primary">
-          Return to Blog
+          Return to blog
         </Button>
       </div>
     );
@@ -26,39 +43,42 @@ export default function BlogDetails() {
     : null;
 
   return (
-    <div className="bg-[#dad7cd] pb-20">
-      
+    <div className="bg-cream pb-20">
+
       {/* Header Banner */}
-      <div className="bg-[#344e41] text-white py-12 px-4 sm:px-6 lg:px-8 mb-8 border-b-2 border-[#344e41]">
-        <div className="max-w-4xl mx-auto text-center">
+      <div className="bg-gradient-to-b from-beige to-cream py-14 px-4 sm:px-6 lg:px-8 mb-8 border-b border-bark/20">
+        <div
+          ref={heroRef}
+          className={`max-w-4xl mx-auto text-center transition-all duration-700 ease-out ${heroInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        >
           <Link
             to="/blog"
-            className="inline-flex items-center gap-1.5 font-mono text-xs font-bold uppercase text-[#a3b18a] hover:text-white mb-3 underline"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-pine hover:text-fern mb-5 transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> All Stories &amp; Guides
+            <ArrowLeft className="w-3.5 h-3.5" /> All stories &amp; guides
           </Link>
 
-          <div className="inline-block px-2.5 py-0.5 font-mono text-xs font-bold uppercase bg-[#3a5a40] text-white border border-white mb-3 block w-fit mx-auto">
+          <div className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium px-3 py-1 mb-4">
             {post.category}
           </div>
 
-          <h1 className="font-serif text-3xl sm:text-5xl font-black uppercase tracking-tight text-white leading-tight">
+          <h1 className="font-serif text-3xl sm:text-5xl font-bold text-soil leading-tight">
             {post.title}
           </h1>
 
           {/* Metadata */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 font-mono text-xs text-[#dad7cd]">
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm text-soil/60">
             {post.author && (
-              <span className="font-bold text-white uppercase">{post.author.name}</span>
+              <span className="font-medium text-soil">{post.author.name}</span>
             )}
             <span>&bull;</span>
             <span className="flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-[#a3b18a]" />
+              <Calendar className="w-3.5 h-3.5 text-sage" />
               {post.date}
             </span>
             <span>&bull;</span>
             <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-[#a3b18a]" />
+              <Clock className="w-3.5 h-3.5 text-sage" />
               {post.readTime}
             </span>
           </div>
@@ -66,46 +86,49 @@ export default function BlogDetails() {
       </div>
 
       {/* Featured Cover Image */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-        <div className="rounded-none overflow-hidden border-2 border-[#344e41] shadow-[5px_5px_0px_0px_#344e41] bg-white p-2">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+        <div className="rounded-2xl overflow-hidden border border-bark/20 shadow-nature">
           <img
             src={post.coverImage}
             alt={post.title}
-            className="w-full aspect-[16/9] object-cover border border-[#344e41]"
+            className="w-full aspect-[16/9] object-cover"
           />
         </div>
       </div>
 
       {/* Article Body */}
-      <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <article
+        ref={bodyRef}
+        className={`max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-700 ease-out ${bodyInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+      >
         <div
-          className="bg-white p-6 sm:p-10 border-2 border-[#344e41] shadow-[4px_4px_0px_0px_#344e41] text-[#344e41] leading-relaxed space-y-4 text-sm sm:text-base font-medium
-            [&_.lead]:text-base [&_.lead]:sm:text-lg [&_.lead]:font-bold [&_.lead]:text-[#344e41] [&_.lead]:border-b-2 [&_.lead]:border-[#dad7cd] [&_.lead]:pb-3
-            [&_h3]:font-serif [&_h3]:text-xl [&_h3]:sm:text-2xl [&_h3]:font-black [&_h3]:uppercase [&_h3]:text-[#344e41] [&_h3]:mt-6 [&_h3]:mb-2
-            [&_blockquote]:border-l-4 [&_blockquote]:border-[#588157] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-[#344e41] [&_blockquote]:my-4 [&_blockquote]:bg-[#dad7cd]/40 [&_blockquote]:py-2
-            [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:font-mono [&_ul]:text-xs [&_ul]:sm:text-sm
-            [&_strong]:text-[#344e41] [&_strong]:font-bold
+          className="bg-cream rounded-2xl p-6 sm:p-10 border border-bark/20 shadow-nature text-soil leading-relaxed space-y-4 text-sm sm:text-base
+            [&_.lead]:text-base [&_.lead]:sm:text-lg [&_.lead]:font-medium [&_.lead]:text-soil [&_.lead]:border-b [&_.lead]:border-bark/15 [&_.lead]:pb-4
+            [&_h3]:font-serif [&_h3]:text-xl [&_h3]:sm:text-2xl [&_h3]:font-bold [&_h3]:text-soil [&_h3]:mt-6 [&_h3]:mb-2
+            [&_blockquote]:border-l-4 [&_blockquote]:border-sage [&_blockquote]:pl-5 [&_blockquote]:italic [&_blockquote]:text-soil/70 [&_blockquote]:my-4 [&_blockquote]:bg-beige/50 [&_blockquote]:py-3 [&_blockquote]:rounded-r-xl
+            [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:text-sm
+            [&_strong]:text-soil [&_strong]:font-semibold
           "
           dangerouslySetInnerHTML={{ __html: post.content }}
         />
 
         {/* Related Itinerary Callout */}
         {relatedPackage && (
-          <div className="mt-8 p-5 bg-white rounded-none border-2 border-[#344e41] shadow-[4px_4px_0px_0px_#344e41] flex flex-col sm:flex-row items-center justify-between gap-4 font-mono">
-            <div className="flex items-center gap-3">
+          <div className="mt-8 p-5 bg-beige rounded-2xl border border-bark/20 shadow-nature flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
               <img
                 src={relatedPackage.coverImage}
                 alt={relatedPackage.name}
-                className="w-16 h-16 border-2 border-[#344e41] object-cover flex-shrink-0"
+                className="w-16 h-16 rounded-xl border border-bark/20 object-cover flex-shrink-0"
               />
               <div>
-                <span className="text-[10px] uppercase font-bold text-[#588157] block">
-                  // EXPERIENCE THIS ROUTE
+                <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium px-2 py-0.5 mb-1">
+                  Experience this route
                 </span>
-                <h4 className="font-serif font-black text-base uppercase text-[#344e41]">
+                <h4 className="font-serif font-bold text-base text-soil">
                   {relatedPackage.name}
                 </h4>
-                <p className="text-[11px] text-[#344e41]/70">
+                <p className="text-xs text-soil/60">
                   {relatedPackage.duration} &bull; {relatedPackage.destinationName}
                 </p>
               </div>
@@ -119,21 +142,21 @@ export default function BlogDetails() {
               iconPosition="right"
               className="whitespace-nowrap"
             >
-              View Route
+              View route
             </Button>
           </div>
         )}
 
         {/* Footer Navigation */}
-        <div className="mt-8 pt-4 border-t-2 border-[#344e41] flex items-center justify-between font-mono">
+        <div className="mt-8 pt-5 border-t border-bark/15 flex items-center justify-between">
           <Link
             to="/blog"
-            className="text-xs font-bold text-[#344e41] hover:text-[#588157] flex items-center gap-1.5 underline"
+            className="text-sm font-medium text-pine hover:text-fern flex items-center gap-1.5 transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Journal
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to journal
           </Link>
           <Button to="/customize-trip" variant="secondary" size="sm" icon={Compass}>
-            Plan Similar Journey
+            Plan similar journey
           </Button>
         </div>
       </article>

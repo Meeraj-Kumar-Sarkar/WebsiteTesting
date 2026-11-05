@@ -28,14 +28,14 @@ export default function Lightbox({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#344e41]/90 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-50 bg-soil/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-fadeIn"
       onClick={onClose}
     >
       {/* Top Close Button */}
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-4 right-4 z-50 w-10 h-10 bg-white text-[#344e41] border-2 border-[#344e41] shadow-[2px_2px_0px_#344e41] flex items-center justify-center cursor-pointer font-bold"
+        className="absolute top-5 right-5 z-50 w-11 h-11 rounded-full bg-cream/90 hover:bg-cream text-soil shadow-nature-md flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-105"
         aria-label="Close Lightbox"
       >
         <X className="w-5 h-5" />
@@ -49,7 +49,7 @@ export default function Lightbox({
             e.stopPropagation();
             onPrev();
           }}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-50 w-10 h-10 bg-white text-[#344e41] border-2 border-[#344e41] shadow-[2px_2px_0px_#344e41] flex items-center justify-center cursor-pointer hidden sm:flex"
+          className="absolute left-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-cream/90 hover:bg-cream text-soil shadow-nature-md flex items-center justify-center cursor-pointer hidden sm:flex transition-all duration-200 hover:scale-110"
           aria-label="Previous Image"
         >
           <ChevronLeft className="w-6 h-6" />
@@ -64,7 +64,7 @@ export default function Lightbox({
             e.stopPropagation();
             onNext();
           }}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-50 w-10 h-10 bg-white text-[#344e41] border-2 border-[#344e41] shadow-[2px_2px_0px_#344e41] flex items-center justify-center cursor-pointer hidden sm:flex"
+          className="absolute right-6 top-1/2 -translate-y-1/2 z-50 w-12 h-12 rounded-full bg-cream/90 hover:bg-cream text-soil shadow-nature-md flex items-center justify-center cursor-pointer hidden sm:flex transition-all duration-200 hover:scale-110"
           aria-label="Next Image"
         >
           <ChevronRight className="w-6 h-6" />
@@ -73,34 +73,34 @@ export default function Lightbox({
 
       {/* Lightbox Content Container */}
       <div
-        className="relative max-w-4xl max-h-[90vh] flex flex-col items-center justify-center bg-white p-3 sm:p-4 border-2 border-[#344e41] shadow-[6px_6px_0px_0px_#344e41] font-mono"
+        className="relative max-w-4xl max-h-[92vh] flex flex-col items-center justify-center bg-cream rounded-3xl p-4 sm:p-6 border border-bark/20 shadow-float animate-scaleIn"
         onClick={(e) => e.stopPropagation()}
       >
         <img
           src={item.image}
           alt={item.title}
-          className="max-h-[65vh] w-auto max-w-full object-contain border border-[#344e41]"
+          className="max-h-[66vh] w-auto max-w-full object-contain rounded-2xl shadow-nature-sm"
         />
 
         {/* Captions and Location metadata */}
-        <div className="mt-3 text-center max-w-2xl px-2 text-[#344e41]">
-          <h3 className="font-serif text-lg sm:text-xl font-black uppercase text-[#344e41]">
+        <div className="mt-4 text-center max-w-2xl px-2 text-soil">
+          <h3 className="font-serif text-lg sm:text-2xl font-bold text-soil">
             {item.title}
           </h3>
-          <p className="text-xs text-[#344e41]/80 mt-0.5 font-medium">
+          <p className="text-xs sm:text-sm text-soil/75 mt-1 font-sans">
             {item.caption}
           </p>
 
-          <div className="flex items-center justify-center gap-3 mt-1.5 text-xs text-[#588157] font-bold">
+          <div className="flex items-center justify-center flex-wrap gap-2.5 mt-2.5 text-xs text-pine font-medium">
             {item.location && (
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sage/20 border border-sage/30 text-pine">
+                <MapPin className="w-3.5 h-3.5" />
                 {item.location}
               </span>
             )}
             {item.altitude && (
-              <span className="flex items-center gap-1">
-                <Mountain className="w-3 h-3" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-beige/60 border border-bark/15 text-soil">
+                <Mountain className="w-3.5 h-3.5 text-fern" />
                 {item.altitude}
               </span>
             )}
@@ -109,20 +109,20 @@ export default function Lightbox({
 
         {/* Mobile Prev / Next Controls */}
         {hasMultiple && (
-          <div className="flex sm:hidden items-center gap-4 mt-3">
+          <div className="flex sm:hidden items-center gap-3 mt-4">
             <button
               type="button"
               onClick={onPrev}
-              className="px-3 py-1 bg-[#dad7cd] text-[#344e41] border border-[#344e41] text-xs font-bold flex items-center gap-1"
+              className="px-4 py-2 rounded-full bg-beige/60 hover:bg-beige text-soil text-xs font-semibold flex items-center gap-1"
             >
-              <ChevronLeft className="w-3.5 h-3.5" /> Prev
+              <ChevronLeft className="w-4 h-4" /> Prev
             </button>
             <button
               type="button"
               onClick={onNext}
-              className="px-3 py-1 bg-[#dad7cd] text-[#344e41] border border-[#344e41] text-xs font-bold flex items-center gap-1"
+              className="px-4 py-2 rounded-full bg-beige/60 hover:bg-beige text-soil text-xs font-semibold flex items-center gap-1"
             >
-              Next <ChevronRight className="w-3.5 h-3.5" />
+              Next <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}

@@ -5,56 +5,43 @@ import Lightbox from './Lightbox';
 export default function GalleryGrid({ items = [] }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
 
-  const openLightbox = (index) => setSelectedIndex(index);
+  const openLightbox  = (i) => setSelectedIndex(i);
   const closeLightbox = () => setSelectedIndex(null);
-
-  const handleNext = () => {
-    if (selectedIndex !== null) {
-      setSelectedIndex((selectedIndex + 1) % items.length);
-    }
-  };
-
-  const handlePrev = () => {
-    if (selectedIndex !== null) {
-      setSelectedIndex((selectedIndex - 1 + items.length) % items.length);
-    }
-  };
+  const handleNext = () => setSelectedIndex((selectedIndex + 1) % items.length);
+  const handlePrev = () => setSelectedIndex((selectedIndex - 1 + items.length) % items.length);
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {items.map((item, idx) => (
           <div
             key={item.id}
             onClick={() => openLightbox(idx)}
-            className="group relative rounded-none overflow-hidden cursor-pointer bg-white border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#344e41] transition-none aspect-[4/3]"
+            className="card-organic group relative rounded-2xl overflow-hidden cursor-pointer border border-bark/20 shadow-nature aspect-[4/3]"
           >
             <img
               src={item.image}
               alt={item.title}
-              className="w-full h-full object-cover transition-none"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
             />
-            
-            {/* Brutalist info bottom bar visible immediately or on hover */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-[#344e41] text-[#dad7cd] border-t-2 border-[#344e41] flex items-center justify-between font-mono text-xs">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-[#a3b18a] block">
-                  {item.location}
-                </span>
-                <span className="font-bold text-white truncate block">
-                  {item.title}
-                </span>
-              </div>
-              <span className="w-6 h-6 border border-[#dad7cd] flex items-center justify-center text-white bg-[#3a5a40]">
-                <ZoomIn className="w-3.5 h-3.5" />
-              </span>
+            {/* Hover overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-soil/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            {/* Info bar — visible on hover */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+              <span className="text-[10px] uppercase font-semibold text-sage block tracking-wide">{item.location}</span>
+              <span className="font-serif text-sm font-bold text-cream block truncate">{item.title}</span>
+            </div>
+
+            {/* Zoom icon */}
+            <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-cream/80 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-nature-sm">
+              <ZoomIn className="w-4 h-4 text-soil" />
             </div>
           </div>
         ))}
       </div>
 
-      {/* Lightbox Modal */}
       {selectedIndex !== null && (
         <Lightbox
           item={items[selectedIndex]}

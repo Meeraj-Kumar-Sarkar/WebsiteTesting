@@ -1,6 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Phone, Mail, MapPin, Clock, ArrowUpRight, Send, Check, ShieldCheck, MessageSquare } from 'lucide-react';
 import Button from '../components/common/Button';
+
+function useInView(threshold = 0.12) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold }
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, inView];
+}
 
 export default function Contact() {
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -11,6 +25,10 @@ export default function Contact() {
     subject: 'General Journey Enquiry',
     message: ''
   });
+
+  const [heroRef, heroInView] = useInView(0.08);
+  const [leftRef, leftInView] = useInView();
+  const [rightRef, rightInView] = useInView();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,19 +51,67 @@ export default function Contact() {
     setFormSubmitted(true);
   };
 
+  const contactItems = [
+    {
+      icon: Phone,
+      iconBg: 'bg-sage/20',
+      iconColor: 'text-pine',
+      label: 'Phone inquiries',
+      main: <a href="tel:+919876543210" className="font-medium text-sm text-soil hover:text-pine transition-colors">+91 98765 43210 (Demo)</a>,
+      sub: 'Mon to Sat, 9:00 AM – 7:30 PM IST',
+    },
+    {
+      icon: MessageSquare,
+      iconBg: 'bg-pine/10',
+      iconColor: 'text-pine',
+      label: 'WhatsApp travel desk',
+      main: (
+        <a
+          href="https://wa.me/919876543210?text=Hi%20Mountain%20and%20Memories,%20I%20have%20an%20enquiry"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-sm text-soil hover:text-pine flex items-center gap-1 transition-colors"
+        >
+          <span>+91 98765 43210</span>
+          <ArrowUpRight className="w-3.5 h-3.5 text-sage" />
+        </a>
+      ),
+      sub: 'Instant messaging & consultations',
+    },
+    {
+      icon: Mail,
+      iconBg: 'bg-sage/20',
+      iconColor: 'text-pine',
+      label: 'Email correspondence',
+      main: <a href="mailto:concierge@mountainandmemories.demo" className="font-medium text-xs sm:text-sm text-soil hover:text-pine transition-colors block truncate">concierge@mountainandmemories.demo</a>,
+      sub: 'Response within 12 operational hours',
+    },
+    {
+      icon: MapPin,
+      iconBg: 'bg-beige',
+      iconColor: 'text-pine',
+      label: 'Base hubs',
+      main: <p className="font-medium text-sm text-soil">Old Manali, HP &bull; Dehradun, UK</p>,
+      sub: 'Logistical basecamp centers',
+    },
+  ];
+
   return (
-    <div className="bg-[#dad7cd] pb-24">
-      
+    <div className="bg-cream pb-24">
+
       {/* Header Banner */}
-      <div className="bg-[#344e41] text-white py-12 px-4 sm:px-6 lg:px-8 mb-8 border-b-2 border-[#344e41]">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-[#3a5a40] border-2 border-white font-mono text-xs uppercase font-bold text-[#dad7cd] mb-3 shadow-[2px_2px_0px_#ffffff]">
-            <span>// DIRECT CONCIERGE</span>
-          </div>
-          <h1 className="font-serif text-3xl sm:text-5xl font-black uppercase tracking-tight text-white">
-            CONNECT WITH OUR SPECIALISTS
+      <div className="bg-gradient-to-b from-beige to-cream py-14 px-4 sm:px-6 lg:px-8 mb-10 border-b border-bark/20">
+        <div
+          ref={heroRef}
+          className={`max-w-4xl mx-auto text-center transition-all duration-700 ease-out ${heroInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        >
+          <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium tracking-widest uppercase px-4 py-1 mb-5">
+            Direct concierge
+          </span>
+          <h1 className="font-serif text-3xl sm:text-5xl font-bold text-soil">
+            Connect with our specialists
           </h1>
-          <p className="mt-3 text-xs sm:text-sm text-[#dad7cd] max-w-2xl mx-auto font-medium leading-relaxed">
+          <p className="mt-4 text-sm text-soil/70 max-w-2xl mx-auto leading-relaxed">
             Have a question regarding high passes, child-friendly mountain routes, or seasonal road openings? We are here to help.
           </p>
         </div>
@@ -53,130 +119,89 @@ export default function Contact() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-          
+
           {/* Left Column: Direct Contact Info & Base Locations */}
-          <div className="lg:col-span-5 space-y-6">
+          <div
+            ref={leftRef}
+            className={`lg:col-span-5 space-y-6 transition-all duration-700 ease-out ${leftInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          >
             <div>
-              <div className="inline-flex items-center gap-2 font-mono text-xs uppercase font-bold px-2 py-0.5 bg-[#a3b18a] border-2 border-[#344e41] shadow-[2px_2px_0px_#344e41] text-[#344e41] mb-2">
-                <span>// DISPATCH DESK</span>
-              </div>
-              <h2 className="font-serif text-2xl sm:text-3xl font-black uppercase text-[#344e41] mb-2">
-                WE ARE ALWAYS A CALL OR MESSAGE AWAY.
+              <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium tracking-widest uppercase px-3 py-0.5 mb-3">
+                Dispatch desk
+              </span>
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-soil mb-2">
+                We are always a call or message away.
               </h2>
-              <p className="text-xs sm:text-sm text-[#344e41]/85 leading-relaxed font-medium">
+              <p className="text-sm text-soil/70 leading-relaxed">
                 Our operations coordinators are based right in the hill states, tracking weather conditions, pass openings, and road permits in real time.
               </p>
             </div>
 
             {/* Contact Cards */}
-            <div className="space-y-3 font-mono">
-              <div className="p-4 bg-white border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41] flex items-start gap-3">
-                <div className="w-9 h-9 border-2 border-[#344e41] bg-[#588157] text-white flex items-center justify-center flex-shrink-0 shadow-[1px_1px_0px_#344e41]">
-                  <Phone className="w-4 h-4 text-white" />
+            <div className="space-y-3">
+              {contactItems.map((item, index) => (
+                <div
+                  key={index}
+                  className="p-4 bg-cream rounded-2xl border border-bark/20 shadow-nature-sm flex items-start gap-3 transition-all duration-700 ease-out"
+                  style={{ transitionDelay: `${index * 80}ms` }}
+                >
+                  <div className={`w-10 h-10 rounded-xl ${item.iconBg} flex items-center justify-center flex-shrink-0`}>
+                    <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-soil/50 uppercase tracking-wide block mb-0.5">
+                      {item.label}
+                    </span>
+                    {item.main}
+                    <p className="text-xs text-soil/50 mt-0.5">{item.sub}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#344e41]/60 block">
-                    Phone Inquiries
-                  </span>
-                  <a href="tel:+919876543210" className="font-bold text-sm text-[#344e41] hover:underline">
-                    +91 98765 43210 (Demo)
-                  </a>
-                  <p className="text-[11px] text-[#344e41]/70 mt-0.5">Mon to Sat, 9:00 AM – 7:30 PM IST</p>
-                </div>
-              </div>
-
-              <div className="p-4 bg-white border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41] flex items-start gap-3">
-                <div className="w-9 h-9 border-2 border-[#344e41] bg-[#3a5a40] text-white flex items-center justify-center flex-shrink-0 shadow-[1px_1px_0px_#344e41]">
-                  <MessageSquare className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#344e41]/60 block">
-                    WhatsApp Travel Desk
-                  </span>
-                  <a
-                    href="https://wa.me/919876543210?text=Hi%20Mountain%20and%20Memories,%20I%20have%20an%20enquiry"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-sm text-[#344e41] hover:underline flex items-center gap-1"
-                  >
-                    <span>+91 98765 43210</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-[#588157]" />
-                  </a>
-                  <p className="text-[11px] text-[#344e41]/70 mt-0.5">Instant messaging &amp; consultations</p>
-                </div>
-              </div>
-
-              <div className="p-4 bg-white border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41] flex items-start gap-3">
-                <div className="w-9 h-9 border-2 border-[#344e41] bg-[#a3b18a] text-[#344e41] flex items-center justify-center flex-shrink-0 shadow-[1px_1px_0px_#344e41]">
-                  <Mail className="w-4 h-4 text-[#344e41]" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#344e41]/60 block">
-                    Email Correspondence
-                  </span>
-                  <a href="mailto:concierge@mountainandmemories.demo" className="font-bold text-xs sm:text-sm text-[#344e41] hover:underline block truncate">
-                    concierge@mountainandmemories.demo
-                  </a>
-                  <p className="text-[11px] text-[#344e41]/70 mt-0.5">Response within 12 operational hours</p>
-                </div>
-              </div>
-
-              <div className="p-4 bg-white border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41] flex items-start gap-3">
-                <div className="w-9 h-9 border-2 border-[#344e41] bg-[#dad7cd] text-[#344e41] flex items-center justify-center flex-shrink-0 shadow-[1px_1px_0px_#344e41]">
-                  <MapPin className="w-4 h-4 text-[#344e41]" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#344e41]/60 block">
-                    Base Hubs
-                  </span>
-                  <p className="font-bold text-xs text-[#344e41]">
-                    Old Manali, HP &bull; Dehradun, UK
-                  </p>
-                  <p className="text-[11px] text-[#344e41]/70 mt-0.5">Logistical basecamp centers</p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
           {/* Right Column: Contact Form */}
-          <div className="lg:col-span-7">
-            <div className="bg-white rounded-none p-6 sm:p-8 border-2 border-[#344e41] shadow-[5px_5px_0px_0px_#344e41]">
-              
+          <div
+            ref={rightRef}
+            className={`lg:col-span-7 transition-all duration-700 ease-out ${rightInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+          >
+            <div className="bg-cream rounded-2xl p-6 sm:p-8 border border-bark/20 shadow-nature">
+
               {formSubmitted ? (
                 <div className="text-center py-8">
-                  <div className="w-12 h-12 border-2 border-[#344e41] bg-[#588157] text-white mx-auto flex items-center justify-center mb-3 shadow-[2px_2px_0px_#344e41]">
-                    <Check className="w-6 h-6" />
+                  <div className="w-14 h-14 rounded-full bg-fern flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-7 h-7 text-cream" />
                   </div>
-                  <span className="font-mono px-2 py-0.5 text-xs font-bold uppercase bg-[#a3b18a] text-[#344e41] border border-[#344e41] inline-block mb-2">
-                    Prototype Demo
+                  <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium px-3 py-0.5 mb-3">
+                    Prototype demo
                   </span>
-                  <h3 className="font-serif text-2xl font-black uppercase text-[#344e41]">
-                    Message Logged Successfully!
+                  <h3 className="font-serif text-2xl font-bold text-soil">
+                    Message logged successfully!
                   </h3>
-                  <p className="font-mono text-xs text-[#344e41]/80 max-w-md mx-auto mt-2 leading-relaxed">
+                  <p className="text-sm text-soil/70 max-w-md mx-auto mt-2 leading-relaxed">
                     Thank you for reaching out, <strong>{formData.name}</strong>. Your enquiry for <em>"{formData.subject}"</em> has been received in this demonstration prototype.
                   </p>
-                  <div className="mt-5">
+                  <div className="mt-6">
                     <Button onClick={() => setFormSubmitted(false)} variant="secondary" size="md">
-                      Send Another Message
+                      Send another message
                     </Button>
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
-                    <h3 className="font-serif text-xl sm:text-2xl font-black uppercase text-[#344e41]">
-                      Send Us a Direct Message
+                    <h3 className="font-serif text-xl sm:text-2xl font-bold text-soil">
+                      Send us a direct message
                     </h3>
-                    <p className="font-mono text-xs text-[#344e41]/70 mt-0.5">
+                    <p className="text-sm text-soil/60 mt-1">
                       Fill out the form below and our itinerary specialist will respond promptly.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-mono text-[11px] font-bold uppercase text-[#344e41] mb-1">
-                        Your Full Name *
+                      <label className="block text-xs font-medium text-soil/60 uppercase tracking-wider mb-1">
+                        Your full name *
                       </label>
                       <input
                         type="text"
@@ -184,13 +209,13 @@ export default function Contact() {
                         placeholder="e.g. Ananya Roy"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-3 py-2 font-mono text-xs bg-[#dad7cd]/40 border-2 border-[#344e41] rounded-none text-[#344e41] focus:bg-white focus:outline-none"
+                        className="w-full px-3 py-2 text-sm bg-beige/60 border border-bark/25 rounded-xl text-soil focus:bg-cream focus:outline-none focus:ring-2 focus:ring-sage/40"
                       />
                     </div>
 
                     <div>
-                      <label className="block font-mono text-[11px] font-bold uppercase text-[#344e41] mb-1">
-                        Phone / WhatsApp Number *
+                      <label className="block text-xs font-medium text-soil/60 uppercase tracking-wider mb-1">
+                        Phone / WhatsApp number *
                       </label>
                       <input
                         type="tel"
@@ -198,32 +223,32 @@ export default function Contact() {
                         placeholder="+91 98765 43210"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-3 py-2 font-mono text-xs bg-[#dad7cd]/40 border-2 border-[#344e41] rounded-none text-[#344e41] focus:bg-white focus:outline-none"
+                        className="w-full px-3 py-2 text-sm bg-beige/60 border border-bark/25 rounded-xl text-soil focus:bg-cream focus:outline-none focus:ring-2 focus:ring-sage/40"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block font-mono text-[11px] font-bold uppercase text-[#344e41] mb-1">
-                      Email Address
+                    <label className="block text-xs font-medium text-soil/60 uppercase tracking-wider mb-1">
+                      Email address
                     </label>
                     <input
                       type="email"
                       placeholder="ananya@example.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 font-mono text-xs bg-[#dad7cd]/40 border-2 border-[#344e41] rounded-none text-[#344e41] focus:bg-white focus:outline-none"
+                      className="w-full px-3 py-2 text-sm bg-beige/60 border border-bark/25 rounded-xl text-soil focus:bg-cream focus:outline-none focus:ring-2 focus:ring-sage/40"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-mono text-[11px] font-bold uppercase text-[#344e41] mb-1">
-                      Subject / Topic
+                    <label className="block text-xs font-medium text-soil/60 uppercase tracking-wider mb-1">
+                      Subject / topic
                     </label>
                     <select
                       value={formData.subject}
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      className="w-full px-3 py-2 font-mono text-xs bg-[#dad7cd]/40 border-2 border-[#344e41] rounded-none text-[#344e41] focus:bg-white focus:outline-none cursor-pointer"
+                      className="w-full px-3 py-2 text-sm bg-beige/60 border border-bark/25 rounded-xl text-soil focus:bg-cream focus:outline-none focus:ring-2 focus:ring-sage/40 cursor-pointer"
                     >
                       <option value="General Journey Enquiry">General Journey Enquiry</option>
                       <option value="Spiti Valley High Passes">Spiti Valley High Passes</option>
@@ -235,26 +260,26 @@ export default function Contact() {
                   </div>
 
                   <div>
-                    <label className="block font-mono text-[11px] font-bold uppercase text-[#344e41] mb-1">
-                      Your Message or Questions
+                    <label className="block text-xs font-medium text-soil/60 uppercase tracking-wider mb-1">
+                      Your message or questions
                     </label>
                     <textarea
                       rows={4}
                       placeholder="Tell us what you have in mind: preferred months, number of people, or specific requirements..."
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full px-3 py-2 font-mono text-xs bg-[#dad7cd]/40 border-2 border-[#344e41] rounded-none text-[#344e41] focus:bg-white focus:outline-none"
+                      className="w-full px-3 py-2 text-sm bg-beige/60 border border-bark/25 rounded-xl text-soil focus:bg-cream focus:outline-none focus:ring-2 focus:ring-sage/40"
                     />
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="font-mono text-[10px] text-[#344e41]/70 flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-[#588157]" />
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-soil/50 flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-sage" />
                       Prototype client message
                     </span>
 
                     <Button type="submit" variant="primary" size="md" icon={Send} iconPosition="right">
-                      Send Enquiry
+                      Send enquiry
                     </Button>
                   </div>
                 </form>

@@ -1,30 +1,70 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Compass, ShieldCheck, Heart, Sparkles, Mountain, Users, Trees, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Users, Sparkles, Trees } from 'lucide-react';
 import SectionHeading from '../components/common/SectionHeading';
 import Button from '../components/common/Button';
 
+function useInView(threshold = 0.12) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
+      { threshold }
+    );
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, inView];
+}
+
 export default function About() {
+  const [heroRef, heroInView] = useInView(0.08);
+  const [philRef, philInView] = useInView();
+  const [valuesRef, valuesInView] = useInView();
+  const [ctaRef, ctaInView] = useInView();
+
+  const values = [
+    {
+      icon: ShieldCheck,
+      title: 'Altitude mindful pacing',
+      body: 'We never rush ascents. High altitude circuits have built-in physiological acclimatization windows, pulse oximetry checks, and emergency oxygen canisters.',
+    },
+    {
+      icon: Users,
+      title: 'Direct native custodians',
+      body: 'Native mountain chauffeurs and certified naturalists. Over 75% of your travel investment goes directly into local village homestays and community suppliers.',
+    },
+    {
+      icon: Sparkles,
+      title: 'Transparent accommodation',
+      body: 'Honest 3-star, 4-star, and 5-star tiers. If a pristine high pass cannot ecologically support a luxury concrete hotel, we provide high-grade boutique eco-glamping instead.',
+    },
+  ];
+
   return (
-    <div className="bg-[#dad7cd] pb-20">
-      
-      {/* Editorial Hero */}
-      <section className="relative py-14 sm:py-20 bg-[#344e41] text-white border-b-2 border-[#344e41] overflow-hidden">
-        <div className="absolute inset-0 opacity-25">
+    <div className="bg-cream pb-20">
+
+      {/* Hero */}
+      <section className="relative py-20 sm:py-28 overflow-hidden bg-gradient-to-b from-beige to-cream">
+        <div className="absolute inset-0 opacity-20">
           <img
             src="https://images.unsplash.com/photo-1544735716-392fe2489ffa?auto=format&fit=crop&w=1920&q=80"
             alt="Uttarakhand mountain ranges"
             className="w-full h-full object-cover"
           />
         </div>
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-[#3a5a40] border-2 border-white font-mono text-xs uppercase font-bold text-[#dad7cd] mb-3 shadow-[2px_2px_0px_#ffffff]">
-            <span>// OUR STORY &amp; ETHOS</span>
-          </div>
-          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl font-black uppercase leading-tight">
-            MOUNTAINS ARE NOT CONQUERED. THEY ARE EXPERIENCED WITH HUMILITY.
+        <div
+          ref={heroRef}
+          className={`relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center transition-all duration-700 ease-out ${heroInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        >
+          <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium tracking-widest uppercase px-4 py-1 mb-5">
+            Our story &amp; ethos
+          </span>
+          <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl font-bold text-soil leading-tight">
+            Mountains are not conquered. They are experienced with humility.
           </h1>
-          <p className="mt-4 text-xs sm:text-base text-[#dad7cd] max-w-3xl mx-auto font-medium leading-relaxed">
+          <p className="mt-5 text-sm sm:text-base text-soil/70 max-w-3xl mx-auto leading-relaxed">
             Mountain &amp; Memories was founded on a simple conviction: the greatest Himalayan journeys are slow, private, and rooted in deep respect for fragile mountain cultures.
           </p>
         </div>
@@ -32,15 +72,18 @@ export default function About() {
 
       {/* Philosophy Section */}
       <section className="py-16 md:py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-14 items-center">
+        <div
+          ref={philRef}
+          className={`grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-14 items-center transition-all duration-700 ease-out ${philInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        >
           <div>
-            <div className="inline-flex items-center gap-2 font-mono text-xs uppercase font-bold px-2 py-0.5 bg-[#a3b18a] border-2 border-[#344e41] shadow-[2px_2px_0px_#344e41] text-[#344e41] mb-3">
-              <span>// GUIDING PHILOSOPHY</span>
-            </div>
-            <h2 className="font-serif text-3xl sm:text-4xl font-black uppercase text-[#344e41] leading-tight mb-4">
-              TRAVEL THAT NOURISHES BOTH THE WANDERER AND THE VALLEY.
+            <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium tracking-widest uppercase px-4 py-1 mb-4">
+              Guiding philosophy
+            </span>
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-soil leading-tight mb-4">
+              Travel that nourishes both the wanderer and the valley.
             </h2>
-            <div className="space-y-3.5 text-[#344e41]/90 text-xs sm:text-sm leading-relaxed font-medium">
+            <div className="space-y-3.5 text-soil/75 text-sm leading-relaxed">
               <p>
                 In the rush to commercialize mountain tourism, too many trips become frantic races between photo points. Guests return exhausted, having spent eight hours a day inside noisy shared buses, leaving behind litter and taking little genuine connection home.
               </p>
@@ -51,28 +94,28 @@ export default function About() {
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button to="/packages" variant="primary" size="md">
-                Browse Curated Journeys
+                Browse curated journeys
               </Button>
               <Button to="/customize-trip" variant="secondary" size="md">
-                Plan a Custom Departure
+                Plan a custom departure
               </Button>
             </div>
           </div>
 
           <div className="relative">
-            <div className="rounded-none overflow-hidden border-2 border-[#344e41] shadow-[5px_5px_0px_0px_#344e41] bg-white p-2">
+            <div className="rounded-2xl overflow-hidden border border-bark/20 shadow-nature bg-cream p-2">
               <img
                 src="https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=1200&q=80"
                 alt="Ancient Spiti monastery on mountain cliff"
-                className="w-full aspect-[4/5] object-cover border border-[#344e41]"
+                className="w-full aspect-[4/5] object-cover rounded-xl"
               />
             </div>
-            <div className="absolute -bottom-4 -left-4 bg-[#a3b18a] p-3 border-2 border-[#344e41] shadow-[3px_3px_0px_#344e41] max-w-xs hidden sm:block">
-              <div className="flex items-center gap-1.5 text-[#344e41] font-mono font-bold text-xs uppercase">
-                <Trees className="w-4 h-4 text-[#344e41]" />
-                <span>Zero Single-Use Plastic</span>
+            <div className="absolute -bottom-4 -left-4 bg-sage/90 p-3 rounded-xl border border-bark/20 shadow-nature-sm max-w-xs hidden sm:block backdrop-blur-sm">
+              <div className="flex items-center gap-1.5 text-pine font-medium text-xs">
+                <Trees className="w-4 h-4 text-pine" />
+                <span>Zero single-use plastic</span>
               </div>
-              <p className="font-mono text-[10px] text-[#344e41]/90 mt-1">
+              <p className="text-xs text-soil/80 mt-1 leading-relaxed">
                 We supply insulated stainless flasks &amp; spring refill stations on all voyages.
               </p>
             </div>
@@ -81,73 +124,61 @@ export default function About() {
       </section>
 
       {/* Core Values */}
-      <section className="bg-white py-16 md:py-20 border-y-2 border-[#344e41]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="bg-beige py-16 md:py-20 border-y border-bark/20">
+        <div
+          ref={valuesRef}
+          className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
+        >
           <SectionHeading
-            tag="Our Pillars"
-            title="HOW WE CRAFT EVERY ITINERARY"
+            tag="Our pillars"
+            title="How we craft every itinerary"
             subtitle="Four core standards that protect your comfort, safety, and cultural authenticity."
             align="center"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <div className="bg-[#dad7cd]/40 p-6 border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41]">
-              <div className="w-10 h-10 border-2 border-[#344e41] bg-[#588157] text-white flex items-center justify-center mb-4 shadow-[2px_2px_0px_#344e41]">
-                <ShieldCheck className="w-5 h-5 text-white" />
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-6 mt-10 transition-all duration-700 ease-out ${valuesInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            {values.map((v, index) => (
+              <div
+                key={index}
+                className="bg-cream rounded-2xl border border-bark/20 shadow-nature p-6 transition-all duration-700 ease-out"
+                style={{ transitionDelay: `${index * 80}ms` }}
+              >
+                <div className="w-11 h-11 rounded-xl bg-sage/20 flex items-center justify-center mb-4">
+                  <v.icon className="w-5 h-5 text-pine" />
+                </div>
+                <h3 className="font-serif text-lg font-bold text-soil mb-2">
+                  {v.title}
+                </h3>
+                <p className="text-sm text-soil/70 leading-relaxed">
+                  {v.body}
+                </p>
               </div>
-              <h3 className="font-serif text-lg font-black uppercase text-[#344e41] mb-2">
-                Altitude Mindful Pacing
-              </h3>
-              <p className="text-xs sm:text-sm text-[#344e41]/85 leading-relaxed font-medium">
-                We never rush ascents. High altitude circuits have built-in physiological acclimatization windows, pulse oximetry checks, and emergency oxygen canisters.
-              </p>
-            </div>
-
-            <div className="bg-[#dad7cd]/40 p-6 border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41]">
-              <div className="w-10 h-10 border-2 border-[#344e41] bg-[#588157] text-white flex items-center justify-center mb-4 shadow-[2px_2px_0px_#344e41]">
-                <Users className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="font-serif text-lg font-black uppercase text-[#344e41] mb-2">
-                Direct Native Custodians
-              </h3>
-              <p className="text-xs sm:text-sm text-[#344e41]/85 leading-relaxed font-medium">
-                Native mountain chauffeurs and certified naturalists. Over 75% of your travel investment goes directly into local village homestays and community suppliers.
-              </p>
-            </div>
-
-            <div className="bg-[#dad7cd]/40 p-6 border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41]">
-              <div className="w-10 h-10 border-2 border-[#344e41] bg-[#588157] text-white flex items-center justify-center mb-4 shadow-[2px_2px_0px_#344e41]">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="font-serif text-lg font-black uppercase text-[#344e41] mb-2">
-                Transparent Accommodation
-              </h3>
-              <p className="text-xs sm:text-sm text-[#344e41]/85 leading-relaxed font-medium">
-                Honest 3-star, 4-star, and 5-star tiers. If a pristine high pass cannot ecologically support a luxury concrete hotel, we provide high-grade boutique eco-glamping instead.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Banner Callout */}
+      {/* CTA Banner */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
-        <div className="bg-[#344e41] rounded-none p-6 sm:p-12 text-white border-2 border-[#344e41] shadow-[6px_6px_0px_0px_#344e41]">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 bg-[#3a5a40] border-2 border-[#dad7cd] font-mono text-xs uppercase font-bold text-[#dad7cd] mb-3">
-            <span>// READY TO BEGIN?</span>
-          </div>
-          <h3 className="font-serif text-2xl sm:text-4xl font-black uppercase text-white mb-3">
-            LET US PLAN YOUR HIMALAYAN JOURNEY TOGETHER.
+        <div
+          ref={ctaRef}
+          className={`bg-pine rounded-2xl p-8 sm:p-14 shadow-nature-lg transition-all duration-700 ease-out ${ctaInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        >
+          <span className="inline-block rounded-full bg-cream/20 text-cream border border-cream/30 text-xs font-medium tracking-widest uppercase px-4 py-1 mb-5">
+            Ready to begin?
+          </span>
+          <h3 className="font-serif text-2xl sm:text-4xl font-bold text-cream mb-3">
+            Let us plan your Himalayan journey together.
           </h3>
-          <p className="text-[#dad7cd] text-xs sm:text-sm max-w-xl mx-auto mb-6 font-medium">
+          <p className="text-cream/75 text-sm max-w-xl mx-auto mb-7">
             Connect with our trip planners to tailor routes, dates, and stay categories suited exactly to your party.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button to="/customize-trip" variant="gold" size="md">
-              Customize Your Trip
+              Customize your trip
             </Button>
             <Button to="/contact" variant="outlineWhite" size="md">
-              Contact Our Team
+              Contact our team
             </Button>
           </div>
         </div>

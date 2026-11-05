@@ -6,53 +6,55 @@ export default function ItineraryDay({ item, defaultOpen = false }) {
   const { day, title, description, meals, stay } = item;
 
   return (
-    <div className="border-2 border-[#344e41] rounded-none overflow-hidden bg-white shadow-[2px_2px_0px_#344e41] font-mono">
+    <div className="rounded-2xl overflow-hidden bg-white/85 backdrop-blur-sm border border-bark/15 shadow-nature-sm hover:border-bark/30 transition-all duration-300">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-[#dad7cd]/40 transition-none cursor-pointer"
+        className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-beige/30 transition-colors duration-200 cursor-pointer"
         aria-expanded={isOpen}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#344e41] text-[#dad7cd] font-bold text-xs flex items-center justify-center border-2 border-[#344e41] flex-shrink-0">
+        <div className="flex items-center gap-3.5">
+          <div className="w-9 h-9 rounded-xl bg-pine text-cream font-serif font-bold text-sm flex items-center justify-center shadow-nature-sm flex-shrink-0">
             D{day}
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-[#588157]">
-              // DAY 0{day}
+            <div className="text-[11px] uppercase tracking-wider font-semibold text-fern">
+              Day 0{day}
             </div>
-            <h4 className="font-serif font-black text-sm sm:text-base uppercase text-[#344e41]">
+            <h4 className="font-serif font-bold text-base sm:text-lg text-soil mt-0.5">
               {title}
             </h4>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase text-[#344e41]/60 hidden sm:inline-block">
-            {isOpen ? 'Close' : 'View'}
+          <span className="text-xs font-medium text-soil/60 hidden sm:inline-block">
+            {isOpen ? 'Close' : 'Details'}
           </span>
-          <div className={`w-6 h-6 border border-[#344e41] flex items-center justify-center transition-none ${isOpen ? 'bg-[#344e41] text-white' : 'bg-[#dad7cd] text-[#344e41]'}`}>
-            <ChevronDown className={`w-3.5 h-3.5 ${isOpen ? 'rotate-180' : ''}`} />
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-300 ${
+            isOpen ? 'bg-pine text-cream rotate-180' : 'bg-beige/60 text-soil hover:bg-beige'
+          }`}>
+            <ChevronDown className="w-4 h-4" />
           </div>
         </div>
       </button>
 
       {isOpen && (
-        <div className="px-4 pb-4 pt-3 border-t-2 border-[#344e41] text-xs text-[#344e41]/90 space-y-3 bg-[#dad7cd]/20">
-          <p className="leading-relaxed font-sans font-medium text-xs sm:text-sm">
+        <div className="px-5 pb-5 pt-3 border-t border-bark/15 text-sm text-soil/80 space-y-3.5 bg-beige/20 animate-fadeIn">
+          <p className="leading-relaxed font-sans">
             {description}
           </p>
 
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#344e41] text-[11px]">
+          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-bark/10 text-xs">
             {meals && (
-              <div className="flex items-center gap-1.5 bg-white border border-[#344e41] px-2 py-1 text-[#344e41]">
-                <Utensils className="w-3 h-3 text-[#588157]" />
+              <div className="inline-flex items-center gap-1.5 bg-cream/90 border border-bark/20 rounded-full px-3 py-1 text-soil font-medium shadow-sm">
+                <Utensils className="w-3.5 h-3.5 text-fern" />
                 <span>{meals}</span>
               </div>
             )}
             {stay && (
-              <div className="flex items-center gap-1.5 bg-white border border-[#344e41] px-2 py-1 text-[#344e41]">
-                <Home className="w-3 h-3 text-[#588157]" />
+              <div className="inline-flex items-center gap-1.5 bg-cream/90 border border-bark/20 rounded-full px-3 py-1 text-soil font-medium shadow-sm">
+                <Home className="w-3.5 h-3.5 text-fern" />
                 <span>Stay: {stay}</span>
               </div>
             )}

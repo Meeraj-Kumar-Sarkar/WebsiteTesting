@@ -6,63 +6,56 @@ export default function DestinationCard({ destination }) {
   const { slug, name, tagline, description, coverImage, idealDuration, altitude } = destination;
 
   return (
-    <div className="group bg-white rounded-none border-2 border-[#344e41] shadow-[3px_3px_0px_0px_#344e41] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_#344e41] transition-none flex flex-col h-full">
-      {/* Destination Image */}
-      <div className="relative aspect-[4/3] overflow-hidden bg-[#dad7cd] border-b-2 border-[#344e41]">
+    <div className="card-organic group bg-cream rounded-2xl overflow-hidden border border-bark/20 shadow-nature flex flex-col h-full">
+      {/* Image */}
+      <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={coverImage}
           alt={`Scenic view of ${name}`}
-          className="w-full h-full object-cover transition-none"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        
-        {/* State/Region Badge */}
-        <div className="absolute top-2.5 left-2.5">
-          <span className="px-2 py-0.5 font-mono text-[10px] font-bold uppercase bg-white text-[#344e41] border-2 border-[#344e41] shadow-[1px_1px_0px_#344e41]">
-            Himalayan State
+        <div className="absolute inset-0 bg-gradient-to-t from-soil/60 via-transparent to-transparent" />
+
+        {/* Top label */}
+        <div className="absolute top-3 left-3">
+          <span className="text-[10px] font-medium px-2 py-0.5 bg-cream/90 text-pine rounded-full uppercase tracking-wide border border-sage/30">
+            Himalayan Region
           </span>
         </div>
 
-        {/* Quick Facts Overlay */}
-        <div className="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between font-mono text-[11px] text-white font-bold">
-          <span className="flex items-center gap-1 bg-[#344e41] border border-white px-2 py-0.5">
-            <Clock className="w-3 h-3 text-[#a3b18a]" />
-            {idealDuration}
+        {/* Bottom fact pills */}
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-cream font-medium">
+          <span className="flex items-center gap-1 bg-soil/70 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            <Clock className="w-3 h-3 text-sage" />{idealDuration}
           </span>
-          <span className="flex items-center gap-1 bg-[#344e41] border border-white px-2 py-0.5">
-            <Mountain className="w-3 h-3 text-[#a3b18a]" />
-            {altitude}
+          <span className="flex items-center gap-1 bg-soil/70 backdrop-blur-sm px-2 py-0.5 rounded-full">
+            <Mountain className="w-3 h-3 text-sage" />{altitude}
           </span>
         </div>
       </div>
 
-      {/* Card Content */}
-      <div className="p-5 flex-1 flex flex-col justify-between bg-white">
+      {/* Content */}
+      <div className="p-5 flex-1 flex flex-col justify-between">
         <div>
-          <h3 className="font-serif text-2xl font-black uppercase text-[#344e41] group-hover:text-[#3a5a40]">
-            {name}
-          </h3>
-          <p className="font-mono text-xs font-bold text-[#588157] uppercase tracking-wide mt-1 mb-2.5">
-            // {tagline}
-          </p>
-          <p className="text-xs sm:text-sm text-[#344e41]/80 leading-relaxed line-clamp-3">
-            {description}
-          </p>
+          <h3 className="font-serif text-2xl font-bold text-soil group-hover:text-pine transition-colors">{name}</h3>
+          {tagline && (
+            <p className="text-xs text-fern font-medium mt-1 mb-2 italic">{tagline}</p>
+          )}
+          <p className="text-sm text-soil/70 leading-relaxed line-clamp-3">{description}</p>
         </div>
 
-        {/* Action Links */}
-        <div className="pt-4 mt-4 border-t-2 border-[#344e41] flex items-center justify-between">
+        {/* Actions */}
+        <div className="pt-4 mt-4 border-t border-bark/15 flex items-center justify-between">
           <Link
             to={`/destinations/${slug}`}
-            className="font-mono text-xs font-bold text-[#344e41] hover:text-[#588157] flex items-center gap-1 underline underline-offset-2"
+            className="text-sm font-medium text-pine hover:text-fern flex items-center gap-1 transition-colors"
           >
-            <span>Region Guide</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            Region Guide <ArrowRight className="w-3.5 h-3.5" />
           </Link>
-
           <Link
             to={`/packages?destination=${slug}`}
-            className="font-mono text-xs font-bold uppercase text-white bg-[#3a5a40] hover:bg-[#344e41] px-3 py-1.5 border-2 border-[#344e41] shadow-[2px_2px_0px_#344e41] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-none"
+            className="text-xs font-semibold text-cream bg-pine px-3 py-1.5 rounded-organic hover:bg-fern transition-colors shadow-nature-sm"
           >
             View Trips
           </Link>
