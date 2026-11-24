@@ -1,14 +1,26 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Compass, KeyRound, AlertCircle, ArrowRight, Shield, UserCheck, DollarSign, Camera } from 'lucide-react';
+import { usePreferences } from '../../context/PreferencesContext';
+import {
+  AlertCircle,
+  ArrowRight,
+  Sun,
+  Moon,
+  Eye,
+  EyeOff,
+  Lock,
+  User
+} from 'lucide-react';
 
 export default function Login() {
   const { login } = useAuth();
+  const { resolvedTheme, toggleTheme } = usePreferences();
   const navigate = useNavigate();
 
-  const [identifier, setIdentifier] = useState('EMP-1001');
-  const [password, setPassword] = useState('Password@123');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -31,148 +43,140 @@ export default function Login() {
         navigate('/master/dashboard');
       }
     } catch (err) {
-      setError(err.message || 'Login failed.');
+      setError(err.message || 'Login failed. Please verify credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickLogin = (id, pwd) => {
-    setIdentifier(id);
-    setPassword(pwd);
-  };
-
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-500 text-white font-serif font-black text-2xl shadow-xl border-2 border-brand-400 mb-4">
-          M
-        </div>
-        <h2 className="text-2xl font-black uppercase tracking-tight text-white font-serif">
-          Mountain & Memories
-        </h2>
-        <p className="mt-1 text-xs text-slate-400 font-mono tracking-wider uppercase">
-          Internal Administration & Operations Portal
-        </p>
-      </div>
+    <div className="min-h-screen bg-canvas text-primary flex flex-col justify-between relative overflow-hidden transition-colors duration-200">
+      {/* Background Decorative Gradient Orbs */}
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <div className="bg-white py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-slate-200">
+      {/* Top Header */}
+      <header className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white font-serif font-black text-xl flex items-center justify-center shadow-md shadow-brand-900/20">
+            M
+          </div>
+          <div>
+            <span className="font-serif font-bold text-lg tracking-tight block text-primary leading-tight">
+              Mountain &amp; Memories
+            </span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted block">
+              Internal Operations Portal
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
+          className="p-2.5 rounded-xl border border-subtle bg-surface hover:bg-hover text-muted hover:text-primary transition shadow-sm"
+          title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {resolvedTheme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+        </button>
+      </header>
+
+      {/* Central Login Card */}
+      <main className="relative z-10 w-full max-w-md mx-auto px-4 py-8 sm:px-6">
+        <div className="card p-6 sm:p-8 shadow-xl border-subtle">
+          <div className="mb-6 text-center">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primary">
+              Welcome back
+            </h1>
+            <p className="mt-1.5 text-xs text-muted">
+              Sign in with your employee identifier or enterprise email
+            </p>
+          </div>
+
           {error && (
-            <div className="mb-4 rounded-xl bg-rose-50 border border-rose-200 p-3.5 flex items-start gap-3 text-xs text-rose-700">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-600" />
-              <div>{error}</div>
+            <div className="mb-5 rounded-xl bg-rose-500/10 border border-rose-500/30 p-3.5 flex items-start gap-3 text-xs text-rose-600 dark:text-rose-400">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <div className="leading-relaxed font-medium">{error}</div>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
                 Employee ID or Email
               </label>
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="e.g. EMP-1001 or admin@mountainandmemories.com"
-                className="mt-1 block w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm"
-              />
+              <div className="relative">
+                <User className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="e.g. EMP-1001 or email@mountainandmemories.com"
+                  className="input pl-9 text-sm"
+                />
+              </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary">
                   Password
                 </label>
-                <Link to="/forgot-password" className="text-xs text-brand-600 hover:text-brand-800 font-medium">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-brand-600 dark:text-brand-400 hover:underline font-medium"
+                >
                   Forgot password?
                 </Link>
               </div>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="mt-1 block w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent text-sm"
-              />
+              <div className="relative">
+                <Lock className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="input pl-9 pr-10 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-2.5 px-4 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full btn btn-primary py-2.5 text-sm font-semibold shadow-md flex items-center justify-center gap-2 mt-2"
             >
-              {loading ? 'Authenticating...' : 'Sign In to Portal'}
+              {loading ? 'Authenticating…' : 'Sign In to Portal'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          {/* Quick Demo Credentials */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2 text-center">
-              One-Click Role Profiles (Demo)
-            </span>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('EMP-1001', 'Password@123')}
-                className="p-2 rounded-lg border border-purple-200 bg-purple-50/50 hover:bg-purple-100 text-left transition flex items-center gap-2"
-              >
-                <Shield className="w-3.5 h-3.5 text-purple-600" />
-                <div>
-                  <div className="font-semibold text-purple-900">Master / CEO</div>
-                  <div className="text-[10px] text-purple-600 font-mono">EMP-1001</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('EMP-1002', 'Password@123')}
-                className="p-2 rounded-lg border border-blue-200 bg-blue-50/50 hover:bg-blue-100 text-left transition flex items-center gap-2"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                <div>
-                  <div className="font-semibold text-blue-900">Sales Lead</div>
-                  <div className="text-[10px] text-blue-600 font-mono">EMP-1002</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('EMP-1003', 'Password@123')}
-                className="p-2 rounded-lg border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100 text-left transition flex items-center gap-2"
-              >
-                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                <div>
-                  <div className="font-semibold text-emerald-900">Finance Officer</div>
-                  <div className="text-[10px] text-emerald-600 font-mono">EMP-1003</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('EMP-1004', 'Password@123')}
-                className="p-2 rounded-lg border border-amber-200 bg-amber-50/50 hover:bg-amber-100 text-left transition flex items-center gap-2"
-              >
-                <Camera className="w-3.5 h-3.5 text-amber-600" />
-                <div>
-                  <div className="font-semibold text-amber-900">Media / Photo</div>
-                  <div className="text-[10px] text-amber-600 font-mono">EMP-1004</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center text-xs text-slate-500">
+          <div className="mt-6 text-center text-xs text-muted">
             New employee?{' '}
-            <Link to="/register" className="font-semibold text-brand-600 hover:text-brand-800">
+            <Link to="/register" className="font-semibold text-brand-600 dark:text-brand-400 hover:underline">
               Register account
             </Link>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 py-4 text-center text-[11px] text-muted">
+        Mountain &amp; Memories Private Limited • Secure Enterprise Network
+      </footer>
     </div>
   );
 }

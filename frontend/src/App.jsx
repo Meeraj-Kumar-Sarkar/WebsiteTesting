@@ -21,27 +21,30 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <div className="min-h-screen flex flex-col bg-cream text-soil font-sans selection:bg-fern selection:text-cream">
-        <Header />
-        <main className="flex-grow">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/destinations" element={<Destinations />} />
-            <Route path="/destinations/:slug" element={<DestinationDetails />} />
-            <Route path="/packages" element={<Packages />} />
-            <Route path="/packages/:slug" element={<PackageDetails />} />
-            <Route path="/stays" element={<Stays />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<BlogDetails />} />
-            <Route path="/customize-trip" element={<CustomizeTrip />} />
-            <Route path="/contact" element={<Contact />} />
-            {/* Fallback route */}
-            <Route path="*" element={<Home />} />
-          </Routes>
-        </main>
-        <Footer />
+      <div className="relative min-h-screen flex flex-col text-soil font-sans selection:bg-fern selection:text-cream">
+        <div className="forest-backdrop" aria-hidden="true" />
+        <div className="relative z-10 min-h-screen flex flex-col">
+          <Header />
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/destinations" element={<Destinations />} />
+              <Route path="/destinations/:slug" element={<DestinationDetails />} />
+              <Route path="/packages" element={<Packages />} />
+              <Route path="/packages/:slug" element={<PackageDetails />} />
+              <Route path="/stays" element={<Packages />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogDetails />} />
+              <Route path="/customize-trip" element={<CustomizeTrip />} />
+              <Route path="/contact" element={<Contact />} />
+              {/* Fallback route */}
+              <Route path="*" element={<Home />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
       </div>
     </BrowserRouter>
   );

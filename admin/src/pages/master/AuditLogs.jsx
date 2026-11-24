@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
+import PageHeader from '../../components/common/PageHeader';
+import EmptyState from '../../components/common/EmptyState';
+import { Spinner } from '../../components/common/Loaders';
+import { useToast } from '../../context/FeedbackContext';
+import { usePreferences } from '../../context/PreferencesContext';
 import { History, Download, Search, Filter, ShieldCheck, User } from 'lucide-react';
 
 export default function AuditLogs() {
@@ -7,6 +12,10 @@ export default function AuditLogs() {
   const [loading, setLoading] = useState(true);
   const [filterDept, setFilterDept] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [exporting, setExporting] = useState(false);
+
+  const toast = useToast();
+  const { formatDateTime } = usePreferences();
 
   const loadLogs = async () => {
     try {
@@ -14,7 +23,7 @@ export default function AuditLogs() {
       const res = await api.get('/reports/audit-logs');
       setLogs(res || []);
     } catch (e) {
-      console.error(e);
+      toast.error('Failed to load audit logs: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -25,6 +34,7 @@ export default function AuditLogs() {
   }, []);
 
   const handleDownloadCsv = async () => {
+    setExporting(true);
     try {
       const csvText = await api.get('/reports/audit-logs/export');
       const blob = new Blob([csvText], { type: 'text/csv' });
@@ -35,8 +45,11 @@ export default function AuditLogs() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      toast.success('Audit ledger exported to CSV file.');
     } catch (err) {
-      alert('Failed to download CSV: ' + err.message);
+      toast.error('Failed to download CSV: ' + err.message);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -53,50 +66,44 @@ export default function AuditLogs() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-brand-700 font-bold mb-1">
-            <ShieldCheck className="w-4 h-4 text-brand-600" />
-            Compliance, Governance & Integrity
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-serif">
-            Business Audit Logs
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Append-only record of financial verifications, approval gates, account modifications, and sensitive customer data changes.
-          </p>
-        </div>
-
-        <button
-          onClick={handleDownloadCsv}
-          className="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-sm transition flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" /> Export CSV / Excel
-        </button>
-      </div>
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        eyebrow="Compliance, Governance & Integrity"
+        title="Business Audit Logs"
+        description="Immutable ledger recording financial verifications, executive approvals, role assignments, and customer modifications."
+        icon={History}
+        actions={
+          <button
+            onClick={handleDownloadCsv}
+            disabled={exporting}
+            className="btn-primary text-xs flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> {exporting ? 'Exporting...' : 'Export CSV / Excel'}
+          </button>
+        }
+      />
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative flex-1 w-full sm:max-w-xs">
+      <div className="card p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search action, employee, record ID..."
-            className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none"
+            placeholder="Search action, employee name, entity ID..."
+            className="input pl-9 text-xs"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500 font-medium">Department:</span>
           <select
             value={filterDept}
             onChange={(e) => setFilterDept(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white"
+            className="input text-xs w-44"
           >
-            <option value="ALL">All Departments</option>
+            <option value="ALL">All Workspaces</option>
             <option value="MASTER">MASTER</option>
             <option value="SALES">SALES</option>
             <option value="FINANCE">FINANCE</option>
@@ -107,48 +114,61 @@ export default function AuditLogs() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-4">Timestamp (UTC)</th>
-                <th className="py-3 px-4">Actor</th>
-                <th className="py-3 px-4">Department</th>
-                <th className="py-3 px-4">Action</th>
-                <th className="py-3 px-4">Target Entity</th>
-                <th className="py-3 px-4">Context / Payload Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-              {filtered.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50/80 transition">
-                  <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                    {new Date(log.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' })}
-                  </td>
-                  <td className="py-3 px-4 font-sans">
-                    <span className="font-bold text-slate-900">{log.actorName}</span>
-                    <span className="font-mono text-slate-400 text-[10px] block">{log.empId}</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
-                      {log.department}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 font-bold text-brand-700">
-                    {log.action}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-slate-600">{log.entityType}: <strong>{log.entityId}</strong></span>
-                  </td>
-                  <td className="py-3 px-4 text-slate-500 font-mono text-[10px] max-w-xs truncate">
-                    {log.details ? JSON.stringify(log.details) : '-'}
-                  </td>
+      <div className="card overflow-hidden">
+        {loading ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-3">
+            <Spinner className="w-7 h-7 text-brand-600" />
+            <p className="text-xs text-slate-500">Loading audit trail entries...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={History}
+            title="No audit entries found"
+            description={search ? 'No log entries matched your search criteria.' : 'Audit trail is currently clear.'}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4">Timestamp</th>
+                  <th className="py-3 px-4">Actor</th>
+                  <th className="py-3 px-4">Department</th>
+                  <th className="py-3 px-4">Action</th>
+                  <th className="py-3 px-4">Target Entity</th>
+                  <th className="py-3 px-4">Context / Payload Details</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                {filtered.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                      {formatDateTime(log.createdAt)}
+                    </td>
+                    <td className="py-3 px-4 font-sans">
+                      <span className="font-bold text-slate-900">{log.actorName}</span>
+                      <span className="font-mono text-slate-400 text-[10px] block">{log.empId}</span>
+                    </td>
+                    <td className="py-3 px-4 font-sans">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700">
+                        {log.department}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-bold text-brand-700">
+                      {log.action}
+                    </td>
+                    <td className="py-3 px-4 font-sans">
+                      <span className="text-slate-600">{log.entityType}: <strong>{log.entityId}</strong></span>
+                    </td>
+                    <td className="py-3 px-4 text-slate-500 font-mono text-[10px] max-w-sm truncate" title={log.details ? JSON.stringify(log.details) : ''}>
+                      {log.details ? JSON.stringify(log.details) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

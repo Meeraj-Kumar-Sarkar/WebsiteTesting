@@ -1,9 +1,26 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
-import { UserPlus, CheckCircle2, AlertCircle, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { usePreferences } from '../../context/PreferencesContext';
+import {
+  UserPlus,
+  CheckCircle2,
+  AlertCircle,
+  ArrowLeft,
+  ShieldAlert,
+  Sun,
+  Moon,
+  Eye,
+  EyeOff,
+  User,
+  Mail,
+  Phone,
+  Lock
+} from 'lucide-react';
 
 export default function Register() {
+  const { resolvedTheme, toggleTheme } = usePreferences();
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -12,6 +29,7 @@ export default function Register() {
     confirmPassword: ''
   });
 
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [registeredResult, setRegisteredResult] = useState(null);
@@ -21,7 +39,7 @@ export default function Register() {
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
+      setError('Passwords do not match. Please verify both entries.');
       return;
     }
 
@@ -40,154 +58,220 @@ export default function Register() {
       });
       setRegisteredResult(res);
     } catch (err) {
-      setError(err.message || 'Registration failed.');
+      setError(err.message || 'Registration failed. Please check details.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <h2 className="text-2xl font-black uppercase tracking-tight text-white font-serif">
-          Employee Registration
-        </h2>
-        <p className="mt-1 text-xs text-slate-400 font-mono tracking-wider uppercase">
-          Mountain & Memories Internal Portal
-        </p>
-      </div>
+    <div className="min-h-screen bg-canvas text-primary flex flex-col justify-between relative overflow-hidden transition-colors duration-200">
+      {/* Decorative Orbs */}
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <div className="bg-white py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-slate-200">
+      {/* Top Header */}
+      <header className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white font-serif font-black text-xl flex items-center justify-center shadow-md">
+            M
+          </div>
+          <div>
+            <span className="font-serif font-bold text-lg tracking-tight block text-primary leading-tight">
+              Mountain & Memories
+            </span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted block">
+              Internal Operations Portal
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
+          className="p-2.5 rounded-xl border border-subtle bg-surface hover:bg-hover text-muted hover:text-primary transition shadow-sm"
+        >
+          {resolvedTheme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+        </button>
+      </header>
+
+      {/* Main Registration Card */}
+      <main className="relative z-10 w-full max-w-lg mx-auto px-4 py-8 sm:px-6">
+        <div className="card p-6 sm:p-8 shadow-xl border-subtle">
           {registeredResult ? (
             <div className="text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-6 h-6" />
+              <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto ring-8 ring-emerald-500/5">
+                <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">Registration Received</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Your account has been created with Employee ID:
+              <h2 className="text-xl font-bold text-primary">Registration Received</h2>
+              <p className="text-xs text-secondary leading-relaxed">
+                Your employee account has been created with assigned ID:
               </p>
-              <div className="p-3 bg-brand-50 border border-brand-200 rounded-xl font-mono text-base font-bold text-brand-800">
+              <div className="p-3 bg-brand-500/10 border border-brand-500/20 rounded-xl font-mono text-lg font-bold text-brand-700 dark:text-brand-300">
                 {registeredResult.empId}
               </div>
 
-              <div className="text-left bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-800 space-y-1">
+              <div className="text-left bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-xs text-amber-800 dark:text-amber-200 space-y-1.5">
                 <div className="font-bold flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-amber-600" />
+                  <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                   Account Status: PENDING_MASTER_APPROVAL
                 </div>
-                <p>
-                  In accordance with company security policy, a newly registered account has no access to company business data until Master reviews the registration and assigns your department and role.
+                <p className="leading-relaxed text-amber-700 dark:text-amber-300">
+                  In accordance with company security policy, a newly registered account has no access to company business data until Master reviews the registration and assigns your department and operational role.
                 </p>
               </div>
 
               <Link
                 to="/login"
-                className="block w-full py-2.5 px-4 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow transition text-center"
+                className="btn btn-primary w-full py-2.5 text-center text-xs block font-semibold shadow-md"
               >
                 Return to Login
               </Link>
             </div>
           ) : (
             <>
+              <div className="mb-6 text-center">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primary">
+                  Employee Registration
+                </h1>
+                <p className="mt-1.5 text-xs text-muted">
+                  Create your profile to request access to the internal portal
+                </p>
+              </div>
+
               {error && (
-                <div className="mb-4 rounded-xl bg-rose-50 border border-rose-200 p-3.5 flex items-start gap-3 text-xs text-rose-700">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-600" />
-                  <div>{error}</div>
+                <div className="mb-5 rounded-xl bg-rose-500/10 border border-rose-500/30 p-3.5 flex items-start gap-3 text-xs text-rose-600 dark:text-rose-400">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div className="leading-relaxed font-medium">{error}</div>
                 </div>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
                     Full Name
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.fullName}
-                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                    placeholder="e.g. Anand Kulkarni"
-                    className="mt-1 block w-full px-3.5 py-2 rounded-lg border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <User className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      autoComplete="name"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                      placeholder="e.g. Anand Kulkarni"
+                      className="input pl-9 text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
                     Company / Professional Email
                   </label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="anand@mountainandmemories.com"
-                    className="mt-1 block w-full px-3.5 py-2 rounded-lg border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      autoComplete="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="anand@mountainandmemories.com"
+                      className="input pl-9 text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
                     Phone Number
                   </label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+91 98765 43210"
-                    className="mt-1 block w-full px-3.5 py-2 rounded-lg border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                  />
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="tel"
+                      required
+                      autoComplete="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+91 98765 43210"
+                      className="input pl-9 text-sm"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    Password (Min 8 characters)
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="••••••••"
-                    className="mt-1 block w-full px-3.5 py-2 rounded-lg border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                  />
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+                      Password (min 8)
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        autoComplete="new-password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="input pl-9 pr-9 text-sm"
+                      />
+                    </div>
+                  </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    placeholder="••••••••"
-                    className="mt-1 block w-full px-3.5 py-2 rounded-lg border border-slate-300 text-slate-900 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none"
-                  />
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1.5">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        autoComplete="new-password"
+                        value={formData.confirmPassword}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        placeholder="••••••••"
+                        className="input pl-9 pr-9 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full mt-2 py-2.5 px-4 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-md transition disabled:opacity-50"
+                  className="w-full btn btn-primary py-2.5 text-sm font-semibold shadow-md mt-2"
                 >
-                  {loading ? 'Submitting Registration...' : 'Register Employee Account'}
+                  {loading ? 'Submitting Registration…' : 'Register Employee Account'}
                 </button>
               </form>
 
-              <div className="mt-6 text-center text-xs text-slate-500">
+              <div className="mt-6 text-center text-xs text-muted">
                 Already registered?{' '}
-                <Link to="/login" className="font-semibold text-brand-600 hover:text-brand-800">
+                <Link to="/login" className="font-semibold text-brand-600 dark:text-brand-400 hover:underline">
                   Sign in
                 </Link>
               </div>
             </>
           )}
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 py-4 text-center text-[11px] text-muted">
+        Mountain & Memories Private Limited • Secure Enterprise Network
+      </footer>
     </div>
   );
 }

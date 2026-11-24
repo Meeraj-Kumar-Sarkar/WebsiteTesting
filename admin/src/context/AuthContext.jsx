@@ -1,62 +1,83 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
+import { DEPARTMENTS } from '../config/navigation';
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
+function readStoredUser() {
+  try {
     const saved = localStorage.getItem('mm_user');
     return saved ? JSON.parse(saved) : null;
-  });
+  } catch {
+    localStorage.removeItem('mm_user');
+    return null;
+  }
+}
 
+/** Pick a valid workspace for the user, honouring their saved preference. */
+function resolveDepartment(user, preferred) {
+  const depts = user?.departments || [];
+  if (!depts.length) return 'SALES';
+  const isMaster = depts.includes('MASTER');
+  if (preferred && DEPARTMENTS.includes(preferred) && (isMaster || depts.includes(preferred))) return preferred;
+  return isMaster ? 'MASTER' : depts[0];
+}
+
+function preferredWorkspace() {
+  try {
+    const p = JSON.parse(localStorage.getItem('mm_prefs') || '{}');
+    return p.defaultWorkspace && p.defaultWorkspace !== 'auto' ? p.defaultWorkspace : null;
+  } catch {
+    return null;
+  }
+}
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(readStoredUser);
   const [token, setToken] = useState(() => localStorage.getItem('mm_token'));
-  
-  const [activeDepartment, setActiveDepartmentState] = useState(() => {
-    return localStorage.getItem('mm_active_dept') || 'MASTER';
-  });
-
+  const [activeDepartment, setActiveDepartmentState] = useState(
+    () => localStorage.getItem('mm_active_dept') || 'MASTER'
+  );
   const [loading, setLoading] = useState(true);
 
-  // Sync active department with user's permitted departments
-  useEffect(() => {
-    if (user && user.departments && user.departments.length > 0) {
-      if (!user.departments.includes(activeDepartment) && !user.departments.includes('MASTER')) {
-        const fallback = user.departments[0];
-        setActiveDepartmentState(fallback);
-        localStorage.setItem('mm_active_dept', fallback);
-      }
-    }
-  }, [user]);
-
-  const setActiveDepartment = (dept) => {
+  const setActiveDepartment = useCallback((dept) => {
     setActiveDepartmentState(dept);
     localStorage.setItem('mm_active_dept', dept);
-  };
+  }, []);
 
-  const login = async (identifier, password) => {
-    const res = await api.post('/auth/login', { identifier, password });
-    localStorage.setItem('mm_token', res.token);
-    localStorage.setItem('mm_user', JSON.stringify(res.user));
-    setToken(res.token);
-    setUser(res.user);
+  // Keep the active workspace valid for the user's permitted departments
+  // (e.g. after a role change, or a stale value left by another account).
+  useEffect(() => {
+    if (!user?.departments?.length) return;
+    const valid = resolveDepartment(user, activeDepartment);
+    if (valid !== activeDepartment) setActiveDepartment(valid);
+  }, [user, activeDepartment, setActiveDepartment]);
 
-    // Default active department to first assigned
-    const initialDept = res.user.departments.includes('MASTER') ? 'MASTER' : (res.user.departments[0] || 'SALES');
-    setActiveDepartment(initialDept);
-
-    return res.user;
-  };
-
-  const logout = () => {
+  const clearSession = useCallback(() => {
     localStorage.removeItem('mm_token');
     localStorage.removeItem('mm_user');
     localStorage.removeItem('mm_active_dept');
     setToken(null);
     setUser(null);
-    window.location.href = '/login';
+  }, []);
+
+  const login = async (identifier, password) => {
+    const res = await api.post('/auth/login', { identifier, password });
+    localStorage.setItem('mm_token', res.token);
+    localStorage.setItem('mm_user', JSON.stringify(res.user));
+    // Set the workspace before the user state so the first render uses it
+    setActiveDepartment(resolveDepartment(res.user, preferredWorkspace()));
+    setToken(res.token);
+    setUser(res.user);
+    return res.user;
   };
 
-  const refreshUser = async () => {
+  const logout = useCallback(() => {
+    clearSession();
+    window.location.replace('/login');
+  }, [clearSession]);
+
+  const refreshUser = useCallback(async () => {
     if (!token) {
       setLoading(false);
       return;
@@ -66,34 +87,44 @@ export function AuthProvider({ children }) {
       setUser(res.user);
       localStorage.setItem('mm_user', JSON.stringify(res.user));
     } catch (e) {
-      console.warn('Failed to refresh user profile:', e.message);
+      // 401 = invalid token, 403 = account frozen/suspended/blocked → end the session.
+      if (e.status === 401 || e.status === 403) {
+        clearSession();
+      } else {
+        console.warn('Failed to refresh user profile:', e.message);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, clearSession]);
 
   useEffect(() => {
     refreshUser();
-  }, [token]);
+  }, [refreshUser]);
 
-  const hasPermission = (permissionCode) => {
-    if (!user) return false;
-    if (user.departments?.includes('MASTER') || user.permissions?.includes('*')) return true;
-    return user.permissions?.includes(permissionCode);
-  };
+  const hasPermission = useCallback(
+    (permissionCode) => {
+      if (!user) return false;
+      if (user.departments?.includes('MASTER') || user.permissions?.includes('*')) return true;
+      return Boolean(user.permissions?.includes(permissionCode));
+    },
+    [user]
+  );
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      token,
-      loading,
-      activeDepartment,
-      setActiveDepartment,
-      login,
-      logout,
-      hasPermission,
-      refreshUser
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        activeDepartment,
+        setActiveDepartment,
+        login,
+        logout,
+        hasPermission,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

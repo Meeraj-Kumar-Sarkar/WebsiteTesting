@@ -10,16 +10,16 @@ export default function SectionHeading({ tag, title, subtitle, align = 'center',
   return (
     <div className={`flex flex-col max-w-3xl mb-8 md:mb-12 ${alignments[align]} ${className}`}>
       {tag && (
-        <span className={`inline-block text-xs font-medium tracking-widest uppercase mb-3 px-3 py-1 rounded-full border ${
+        <span className={`inline-block text-xs font-bold tracking-[0.16em] uppercase mb-3 px-3 py-1 rounded border ${
           light
-            ? 'bg-sage/20 text-cream border-sage/40'
-            : 'bg-sage/20 text-pine border-sage/40'
+            ? 'bg-pine/35 text-sage border-sage/40'
+            : 'bg-pine/35 text-sage border-sage/35'
         }`}>
           {tag}
         </span>
       )}
       {title && (
-        <h2 className={`font-serif text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-snug ${
+        <h2 className={`font-sans text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-tight ${
           light ? 'text-cream' : 'text-soil'
         }`}>
           {title}

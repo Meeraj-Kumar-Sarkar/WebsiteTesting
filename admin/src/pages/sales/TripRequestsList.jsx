@@ -3,6 +3,11 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../../api/client';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
+import PageHeader from '../../components/common/PageHeader';
+import EmptyState from '../../components/common/EmptyState';
+import { Spinner } from '../../components/common/Loaders';
+import { useToast, useConfirm } from '../../context/FeedbackContext';
+import { usePreferences } from '../../context/PreferencesContext';
 import {
   CalendarCheck,
   Plus,
@@ -14,18 +19,20 @@ import {
   HelpCircle,
   Search,
   Trash2,
-  FileText
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 
 export default function TripRequestsList() {
   const location = useLocation();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [search, setSearch] = useState('');
-  const [feedback, setFeedback] = useState('');
 
   // Create Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
   const [formData, setFormData] = useState({
     enquiryId: '',
     customerName: '',
@@ -47,6 +54,11 @@ export default function TripRequestsList() {
   const [depositAmount, setDepositAmount] = useState('');
   const [depositDueDate, setDepositDueDate] = useState('');
   const [depositReason, setDepositReason] = useState('');
+  const [depositLoading, setDepositLoading] = useState(false);
+
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { formatDate } = usePreferences();
 
   const loadRequests = async () => {
     try {
@@ -54,7 +66,7 @@ export default function TripRequestsList() {
       const res = await api.get('/trip-requests');
       setRequests(res || []);
     } catch (e) {
-      console.error(e);
+      toast.error('Failed to load trip requests: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -65,7 +77,7 @@ export default function TripRequestsList() {
     // Check if prefill state passed from enquiries
     if (location.state?.prefill) {
       const p = location.state.prefill;
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         enquiryId: p.enquiryId || '',
         customerName: p.customerName || '',
@@ -101,263 +113,344 @@ export default function TripRequestsList() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    if (formData.travellers.some(t => !t.fullName.trim())) {
-      alert('All travellers must have a full name.');
+    if (formData.travellers.some((t) => !t.fullName.trim())) {
+      toast.warning('All travellers must have a full name.');
       return;
     }
+    setCreateLoading(true);
     try {
       const res = await api.post('/trip-requests', formData);
-      setFeedback(`Trip Request ${res.tripRequestId} drafted successfully. Next step: submit for Finance & Master review.`);
+      toast.success(`Trip Request ${res.tripRequestId} drafted successfully.`);
       setShowCreateModal(false);
       await loadRequests();
     } catch (err) {
-      setFeedback(`Error: ${err.message}`);
+      toast.error(`Error saving request: ${err.message}`);
+    } finally {
+      setCreateLoading(false);
     }
   };
 
   const handleSubmitForReview = async (reqId) => {
+    const ok = await confirm({
+      title: 'Submit for Executive & Finance Review?',
+      message: 'This will lock draft changes and dispatch notifications to Finance for billing and Master for authorization.',
+      confirmText: 'Submit for Review'
+    });
+    if (!ok) return;
+
     try {
       await api.post(`/trip-requests/${reqId}/submit`, {});
-      setFeedback('Trip request successfully submitted to Finance and Master queues.');
+      toast.success('Trip request submitted to Finance and Master queues.');
       await loadRequests();
     } catch (err) {
-      alert('Submission failed: ' + err.message);
+      toast.error('Submission failed: ' + err.message);
     }
   };
 
   const handleDepositSubmit = async (e) => {
     e.preventDefault();
     if (!depositModalReq || !depositAmount) return;
+    setDepositLoading(true);
     try {
       await api.post(`/trip-requests/${depositModalReq.id}/deposit-exception`, {
         depositAmount,
         dueDate: depositDueDate,
         reason: depositReason
       });
-      setFeedback(`Deposit exception forwarded to Master for authorization.`);
+      toast.success('Deposit exception forwarded to Master for authorization.');
       setDepositModalReq(null);
       setDepositAmount('');
       setDepositDueDate('');
       setDepositReason('');
+      await loadRequests();
     } catch (err) {
-      alert('Failed: ' + err.message);
+      toast.error('Failed to submit exception: ' + err.message);
+    } finally {
+      setDepositLoading(false);
     }
   };
 
-  const filtered = requests.filter(r =>
-    !search ||
-    r.tripRequestId?.toLowerCase().includes(search.toLowerCase()) ||
-    r.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-    r.packageName?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = requests.filter((r) => {
+    const matchesStatus = filterStatus === 'ALL' || r.status === filterStatus;
+    const q = search.toLowerCase();
+    const matchesSearch =
+      !q ||
+      r.tripRequestId?.toLowerCase().includes(q) ||
+      r.customerName?.toLowerCase().includes(q) ||
+      r.packageName?.toLowerCase().includes(q);
+    return matchesStatus && matchesSearch;
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-brand-700 font-bold mb-1">
-            <CalendarCheck className="w-4 h-4 text-brand-600" />
-            Booking Dossiers & Proposals
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-serif">
-            Trip Requests
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Dossiers submitted by Sales for financial assessment, invoice issuance, and Master green-signal authorization.
-          </p>
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        eyebrow="Booking Dossiers & Proposals"
+        title="Trip Requests"
+        description="Dossiers submitted by Sales for financial assessment, invoice issuance, and Master green-signal authorization."
+        icon={CalendarCheck}
+        actions={
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn-primary text-xs"
+          >
+            <Plus className="w-4 h-4" /> Prepare Trip Request
+          </button>
+        }
+      />
+
+      {/* Filter and Search Bar */}
+      <div className="card p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search request ID, customer, package..."
+            className="input pl-9 text-xs"
+          />
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" /> Prepare Trip Request
-        </button>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          {[
+            { id: 'ALL', label: 'All Requests' },
+            { id: 'DRAFT', label: 'Drafts' },
+            { id: 'SUBMITTED', label: 'Submitted' },
+            { id: 'PAYMENT_PENDING', label: 'Payment Pending' },
+            { id: 'APPROVED_FOR_SUPPLIER_BOOKING', label: 'Approved Booking' },
+            { id: 'COMPLETED', label: 'Completed' },
+          ].map((st) => (
+            <button
+              key={st.id}
+              onClick={() => setFilterStatus(st.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                filterStatus === st.id
+                  ? 'bg-brand-600 text-white shadow-soft'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {st.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {feedback && (
-        <div className="p-3.5 rounded-xl bg-brand-50 border border-brand-200 text-brand-900 text-xs font-medium flex items-center justify-between">
-          <span>{feedback}</span>
-          <button onClick={() => setFeedback('')} className="font-bold text-brand-700 hover:text-brand-900">×</button>
-        </div>
-      )}
-
       {/* Requests Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search request ID, customer..."
-              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white"
-            />
+      <div className="card overflow-hidden">
+        {loading ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-3">
+            <Spinner className="w-7 h-7 text-brand-600" />
+            <p className="text-xs text-slate-500">Retrieving trip requests...</p>
           </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-4">Request ID</th>
-                <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Package & Dates</th>
-                <th className="py-3 px-4">Travellers</th>
-                <th className="py-3 px-4">Agreed Amount</th>
-                <th className="py-3 px-4">Workflow State</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((req) => (
-                <tr key={req.id} className="hover:bg-slate-50/80 transition">
-                  <td className="py-3 px-4 font-mono font-bold text-brand-700">
-                    {req.tripRequestId}
-                    {req.enquiryId && (
-                      <span className="block text-[10px] text-slate-400 font-normal">From {req.enquiryId}</span>
-                    )}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="font-bold text-slate-900">{req.customerName}</div>
-                    <div className="text-[11px] text-slate-500">{req.customerPhone}</div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="font-semibold text-slate-800">{req.packageName}</div>
-                    <div className="text-[11px] text-slate-500">{req.travelDates}</div>
-                  </td>
-                  <td className="py-3 px-4 font-bold text-slate-800">
-                    {req.travellerCount} pax
-                  </td>
-                  <td className="py-3 px-4 font-bold text-slate-900">
-                    ₹{req.agreedAmount?.toLocaleString()}
-                  </td>
-                  <td className="py-3 px-4">
-                    <Badge status={req.status} />
-                  </td>
-                  <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
-                    {req.status === 'DRAFT' && (
-                      <button
-                        onClick={() => handleSubmitForReview(req.id)}
-                        className="px-2.5 py-1 rounded bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow-sm transition inline-flex items-center gap-1"
-                      >
-                        <Send className="w-3 h-3" /> Submit for Review
-                      </button>
-                    )}
-
-                    {req.status === 'CHANGES_REQUESTED' && (
-                      <button
-                        onClick={() => handleSubmitForReview(req.id)}
-                        className="px-2.5 py-1 rounded bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs shadow-sm transition"
-                      >
-                        Resubmit Corrections
-                      </button>
-                    )}
-
-                    {!req.depositAllowed && (req.status === 'SUBMITTED' || req.status === 'PAYMENT_PENDING' || req.status === 'DRAFT') && (
-                      <button
-                        onClick={() => {
-                          setDepositModalReq(req);
-                          setDepositAmount((req.agreedAmount * 0.3).toString());
-                        }}
-                        className="px-2 py-1 rounded border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 text-xs font-semibold"
-                        title="Request Master permission for advance deposit"
-                      >
-                        Request Deposit Exception
-                      </button>
-                    )}
-                  </td>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={CalendarCheck}
+            title="No trip requests found"
+            description={search ? 'No requests match your search criteria.' : 'No proposals found under this workflow stage.'}
+            action={
+              <button onClick={() => setShowCreateModal(true)} className="btn-primary text-xs">
+                <Plus className="w-4 h-4" /> Create Trip Request
+              </button>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4">Request ID</th>
+                  <th className="py-3 px-4">Customer</th>
+                  <th className="py-3 px-4">Package &amp; Dates</th>
+                  <th className="py-3 px-4">Travellers</th>
+                  <th className="py-3 px-4">Agreed Amount</th>
+                  <th className="py-3 px-4">Workflow State</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((req) => (
+                  <tr key={req.id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 font-mono font-bold text-brand-700">
+                      {req.tripRequestId}
+                      {req.enquiryId && (
+                        <span className="block text-[10px] text-slate-400 font-normal">From {req.enquiryId}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-bold text-slate-900">{req.customerName}</div>
+                      <div className="text-[11px] text-slate-500 font-mono">{req.customerPhone}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-slate-800">{req.packageName}</div>
+                      <div className="text-[11px] text-slate-500">{req.travelDates}</div>
+                    </td>
+                    <td className="py-3 px-4 font-bold text-slate-800 tabular-nums">
+                      {req.travellerCount} pax
+                    </td>
+                    <td className="py-3 px-4 font-bold text-slate-900 tabular-nums">
+                      ₹{req.agreedAmount?.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge status={req.status} />
+                    </td>
+                    <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                      {req.status === 'DRAFT' && (
+                        <button
+                          onClick={() => handleSubmitForReview(req.id)}
+                          className="btn-primary py-1 px-3 text-xs inline-flex items-center gap-1"
+                        >
+                          <Send className="w-3 h-3" /> Submit for Review
+                        </button>
+                      )}
+
+                      {req.status === 'CHANGES_REQUESTED' && (
+                        <button
+                          onClick={() => handleSubmitForReview(req.id)}
+                          className="btn-primary py-1 px-3 text-xs bg-amber-600 hover:bg-amber-700"
+                        >
+                          Resubmit Corrections
+                        </button>
+                      )}
+
+                      {!req.depositAllowed && (req.status === 'SUBMITTED' || req.status === 'PAYMENT_PENDING' || req.status === 'DRAFT') && (
+                        <button
+                          onClick={() => {
+                            setDepositModalReq(req);
+                            setDepositAmount((req.agreedAmount * 0.3).toString());
+                          }}
+                          className="btn-secondary py-1 px-2.5 text-xs text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100"
+                          title="Request Master permission for advance deposit"
+                        >
+                          Request Deposit Exception
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Prepare Trip Request Modal with Travellers Collection */}
       {showCreateModal && (
-        <Modal isOpen={true} onClose={() => setShowCreateModal(false)} title="Prepare Trip Request & Traveller Details" maxWidth="max-w-4xl">
-          <form onSubmit={handleCreateSubmit} className="space-y-5">
+        <Modal
+          isOpen={true}
+          onClose={() => setShowCreateModal(false)}
+          title="Prepare Trip Request & Traveller Details"
+          description="Build itinerary proposal, register travelling passengers, and lock quotation."
+          maxWidth="max-w-4xl"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="create-trip-request-form"
+                disabled={createLoading}
+                className="btn-primary text-xs"
+              >
+                {createLoading ? 'Saving...' : 'Save Draft Proposal'}
+              </button>
+            </>
+          }
+        >
+          <form id="create-trip-request-form" onSubmit={handleCreateSubmit} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Customer Full Name</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Customer Full Name <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.customerName}
                   onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
+                  className="input text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Customer Phone</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Customer Phone <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="tel"
                   required
                   value={formData.customerPhone}
                   onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
+                  className="input text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Customer Email</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Customer Email</label>
                 <input
                   type="email"
                   value={formData.customerEmail}
                   onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
+                  className="input text-xs"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Package Name</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Package Name <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.packageName}
                   onChange={(e) => setFormData({ ...formData, packageName: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
+                  className="input text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Travel Dates Window</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Travel Dates Window <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.travelDates}
                   onChange={(e) => setFormData({ ...formData, travelDates: e.target.value })}
                   placeholder="e.g. 15 Dec 2026 - 22 Dec 2026"
-                  className="w-full px-3 py-2 border rounded-lg text-xs"
+                  className="input text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Agreed Amount (INR)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Agreed Amount (INR) <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="number"
                   required
                   value={formData.agreedAmount}
                   onChange={(e) => setFormData({ ...formData, agreedAmount: e.target.value })}
                   placeholder="95000"
-                  className="w-full px-3 py-2 border rounded-lg text-xs font-bold"
+                  className="input text-xs font-bold"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Sales Negotiation Notes</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Sales Negotiation Notes</label>
               <textarea
                 rows={2}
                 value={formData.salesNotes}
                 onChange={(e) => setFormData({ ...formData, salesNotes: e.target.value })}
                 placeholder="Details of quotation agreed with customer..."
-                className="w-full px-3 py-2 border rounded-lg text-xs"
+                className="input resize-none text-xs"
               />
             </div>
 
@@ -369,20 +462,20 @@ export default function TripRequestsList() {
                     <Users className="w-4 h-4 text-brand-600" />
                     Traveller Profiles ({formData.travellers.length})
                   </h3>
-                  <p className="text-[11px] text-slate-500">Contact person may not be a traveller; collect each passenger details.</p>
+                  <p className="text-[11px] text-slate-500">Contact person may not be a passenger; register each traveller.</p>
                 </div>
                 <button
                   type="button"
                   onClick={addTravellerRow}
-                  className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+                  className="btn-secondary py-1 px-2.5 text-xs"
                 >
                   + Add Traveller
                 </button>
               </div>
 
-              <div className="space-y-3 max-h-60 overflow-y-auto">
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
                 {formData.travellers.map((traveller, index) => (
-                  <div key={index} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs grid grid-cols-1 sm:grid-cols-4 gap-2 relative">
+                  <div key={index} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs grid grid-cols-1 sm:grid-cols-4 gap-2.5 relative">
                     <div>
                       <label className="text-[10px] uppercase font-semibold text-slate-500">Full Name</label>
                       <input
@@ -395,13 +488,13 @@ export default function TripRequestsList() {
                           setFormData({ ...formData, travellers: updated });
                         }}
                         placeholder="Traveller name"
-                        className="w-full px-2 py-1 border rounded text-xs bg-white"
+                        className="input text-xs"
                       />
                     </div>
 
                     <div>
                       <label className="text-[10px] uppercase font-semibold text-slate-500">Age / Gender</label>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1.5">
                         <input
                           type="number"
                           value={traveller.age}
@@ -411,7 +504,7 @@ export default function TripRequestsList() {
                             setFormData({ ...formData, travellers: updated });
                           }}
                           placeholder="Age"
-                          className="w-16 px-2 py-1 border rounded text-xs bg-white"
+                          className="input w-16 text-xs"
                         />
                         <select
                           value={traveller.gender}
@@ -420,7 +513,7 @@ export default function TripRequestsList() {
                             updated[index].gender = e.target.value;
                             setFormData({ ...formData, travellers: updated });
                           }}
-                          className="flex-1 px-1 py-1 border rounded text-xs bg-white"
+                          className="input flex-1 text-xs"
                         >
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
@@ -430,7 +523,7 @@ export default function TripRequestsList() {
                     </div>
 
                     <div>
-                      <label className="text-[10px] uppercase font-semibold text-slate-500">Emergency Contact</label>
+                      <label className="text-[10px] uppercase font-semibold text-slate-500">Emergency Phone</label>
                       <input
                         type="tel"
                         value={traveller.emergencyContact}
@@ -440,7 +533,7 @@ export default function TripRequestsList() {
                           setFormData({ ...formData, travellers: updated });
                         }}
                         placeholder="+91 Phone"
-                        className="w-full px-2 py-1 border rounded text-xs bg-white"
+                        className="input text-xs"
                       />
                     </div>
 
@@ -455,15 +548,16 @@ export default function TripRequestsList() {
                             updated[index].relationship = e.target.value;
                             setFormData({ ...formData, travellers: updated });
                           }}
-                          placeholder="Spouse, Child, Self"
-                          className="w-full px-2 py-1 border rounded text-xs bg-white"
+                          placeholder="Self, Spouse, Child"
+                          className="input text-xs"
                         />
                       </div>
                       {formData.travellers.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeTravellerRow(index)}
-                          className="mt-4 p-1 text-rose-500 hover:text-rose-700"
+                          className="mt-4 p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"
+                          title="Remove traveller"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -472,19 +566,6 @@ export default function TripRequestsList() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t">
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 border rounded-lg text-xs"
-              >
-                Cancel
-              </button>
-              <button type="submit" className="px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-bold">
-                Save Draft Proposal
-              </button>
             </div>
           </form>
         </Modal>
@@ -496,40 +577,55 @@ export default function TripRequestsList() {
           isOpen={true}
           onClose={() => setDepositModalReq(null)}
           title={`Request Advance Deposit Exception: ${depositModalReq.tripRequestId}`}
+          description="Default payment policy is 100% upfront. Master authorization is required for partial split deposits."
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setDepositModalReq(null)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="deposit-exception-form"
+                disabled={depositLoading || !depositAmount}
+                className="btn-primary text-xs bg-purple-600 hover:bg-purple-700"
+              >
+                {depositLoading ? 'Requesting...' : 'Request Master Approval'}
+              </button>
+            </>
+          }
         >
-          <form onSubmit={handleDepositSubmit} className="space-y-4">
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-900 space-y-1">
-              <strong>Policy Exception Rule:</strong>
-              <p>Default payment is 100% upfront. Master authorization is required for partial deposit collections.</p>
-            </div>
-
+          <form id="deposit-exception-form" onSubmit={handleDepositSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                Proposed Deposit Amount (INR)
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Proposed Initial Deposit Amount (INR) <span className="text-rose-500">*</span>
               </label>
               <input
                 type="number"
                 required
                 value={depositAmount}
                 onChange={(e) => setDepositAmount(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-xs"
+                className="input text-xs font-bold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Balance Due Date
               </label>
               <input
                 type="date"
                 value={depositDueDate}
                 onChange={(e) => setDepositDueDate(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-xs"
+                className="input text-xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Sales Justification for Exception
               </label>
               <textarea
@@ -537,17 +633,8 @@ export default function TripRequestsList() {
                 value={depositReason}
                 onChange={(e) => setDepositReason(e.target.value)}
                 placeholder="Reason customer requested split payment..."
-                className="w-full px-3 py-2 border rounded-lg text-xs"
+                className="input resize-none text-xs"
               />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t">
-              <button type="button" onClick={() => setDepositModalReq(null)} className="px-4 py-2 border rounded-lg text-xs">
-                Cancel
-              </button>
-              <button type="submit" className="px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold">
-                Request Master Approval
-              </button>
             </div>
           </form>
         </Modal>

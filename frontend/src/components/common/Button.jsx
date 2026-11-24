@@ -15,26 +15,26 @@ export default function Button({
   disabled = false,
   ...props
 }) {
-  // Organic button base: softly rounded, natural colours, gentle hover lift
+  // Crisp executive business button base
   const baseStyles =
-    'inline-flex items-center justify-center font-semibold tracking-wide transition-all duration-200 ease-out rounded-organic focus:outline-none focus:ring-2 focus:ring-fern/40 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-center select-none hover:-translate-y-0.5 active:translate-y-0.5';
+    'inline-flex items-center justify-center font-semibold tracking-wider uppercase transition-all duration-200 ease-out rounded-md focus:outline-none focus:ring-2 focus:ring-sage/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-center select-none hover:-translate-y-0.5 active:translate-y-0';
 
   const sizeStyles = {
-    sm: 'px-4 py-1.5 text-xs',
-    md: 'px-5 py-2.5 text-sm',
-    lg: 'px-7 py-3.5 text-base',
+    sm: 'px-4 py-2 text-xs',
+    md: 'px-5 py-2.5 text-xs',
+    lg: 'px-7 py-3.5 text-sm',
   };
 
   const variantStyles = {
-    primary:      'bg-pine text-cream shadow-nature-sm hover:bg-fern hover:shadow-nature',
-    secondary:    'bg-beige text-soil border border-bark/30 shadow-nature-sm hover:bg-sage/30 hover:shadow-nature',
-    gold:         'bg-fern text-cream shadow-nature-sm hover:bg-pine hover:shadow-nature',
-    sage:         'bg-sage text-soil shadow-nature-sm hover:bg-sage/70 hover:shadow-nature',
-    dark:         'bg-soil text-cream shadow-nature-sm hover:bg-bark hover:shadow-nature',
-    white:        'bg-cream text-soil border border-bark/20 shadow-nature-sm hover:bg-beige hover:shadow-nature',
-    outlineWhite: 'bg-transparent text-cream border-2 border-cream/70 hover:bg-cream hover:text-soil',
-    ghost:        'bg-transparent border border-transparent hover:bg-sage/20 text-soil',
-    ivory:        'bg-cream text-soil border border-bark/20 shadow-nature-sm hover:bg-beige',
+    primary:      'bg-pine text-cream border border-fern/50 shadow-nature-sm hover:bg-fern hover:border-sage/50 hover:shadow-nature',
+    secondary:    'bg-cream/80 text-soil border border-bark/35 shadow-nature-sm hover:bg-pine/40 hover:border-sage/50 hover:shadow-nature',
+    gold:         'bg-fern text-cream border border-sage/30 shadow-nature-sm hover:bg-pine hover:shadow-nature',
+    sage:         'bg-sage text-[#06150a] border border-sage shadow-nature-sm hover:bg-[#a6e645] hover:shadow-nature',
+    dark:         'bg-[#0a2312] text-cream border border-bark/40 shadow-nature-sm hover:bg-pine hover:border-sage/40 hover:shadow-nature',
+    white:        'bg-cream/85 text-soil border border-bark/30 shadow-nature-sm hover:bg-pine/40 hover:border-sage/40 hover:shadow-nature',
+    outlineWhite: 'bg-transparent text-cream border border-cream/60 hover:bg-cream hover:text-[#06150a]',
+    ghost:        'bg-transparent border border-transparent hover:bg-pine/30 text-soil',
+    ivory:        'bg-cream/85 text-soil border border-bark/30 shadow-nature-sm hover:bg-pine/40',
   };
 
   const content = (

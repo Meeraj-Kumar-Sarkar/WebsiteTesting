@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
-import { Settings, ShieldCheck, QrCode, AlertTriangle, Save } from 'lucide-react';
+import PageHeader from '../../components/common/PageHeader';
+import { Spinner } from '../../components/common/Loaders';
+import { useToast } from '../../context/FeedbackContext';
+import { Settings, QrCode, AlertTriangle, Save, Building, Phone } from 'lucide-react';
 
 export default function SystemSettings() {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const toast = useToast();
 
   const loadSettings = async () => {
     try {
@@ -14,7 +17,7 @@ export default function SystemSettings() {
       const res = await api.get('/reports/system-settings');
       setSettings(res || {});
     } catch (e) {
-      console.error(e);
+      toast.error('Failed to load system settings: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -27,149 +30,172 @@ export default function SystemSettings() {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setFeedback('');
     try {
       await api.patch('/reports/system-settings', settings);
-      setFeedback('System configuration and UPI settings successfully updated.');
+      toast.success('System configuration and billing identities updated.');
     } catch (err) {
-      setFeedback(`Error: ${err.message}`);
+      toast.error(`Error saving settings: ${err.message}`);
     } finally {
       setSaving(false);
     }
   };
 
   if (loading && !settings) {
-    return <div className="p-8 text-center text-xs text-slate-500">Loading settings...</div>;
+    return (
+      <div className="p-16 flex flex-col items-center justify-center gap-3">
+        <Spinner className="w-8 h-8 text-brand-600" />
+        <p className="text-xs text-slate-500">Loading system configuration...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="border-b border-slate-200 pb-5">
-        <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-brand-700 font-bold mb-1">
-          <Settings className="w-4 h-4 text-brand-600" />
-          Master Configuration
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-serif">
-          System & Financial Settings
-        </h1>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Configure demonstration UPI QR parameters, billing identity, payment expiry, and legal notices.
-        </p>
-      </div>
-
-      {feedback && (
-        <div className="p-3.5 rounded-xl bg-brand-50 border border-brand-200 text-brand-900 text-xs font-medium flex items-center justify-between">
-          <span>{feedback}</span>
-          <button onClick={() => setFeedback('')} className="font-bold text-brand-700 hover:text-brand-900">×</button>
-        </div>
-      )}
+    <div className="space-y-6 max-w-4xl mx-auto animate-fade-in pb-12">
+      <PageHeader
+        eyebrow="Master Configuration & Billing Identity"
+        title="System & Financial Settings"
+        description="Configure UPI payment parameters, billing identity, public contact information, tax registrations, and legal notices."
+        icon={Settings}
+      />
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* UPI QR Settings */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <QrCode className="w-5 h-5 text-emerald-600" />
+        <div className="card p-6 sm:p-8 space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
+              <QrCode className="w-5 h-5" />
+            </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Demonstration UPI QR Configuration</h2>
-              <p className="text-xs text-slate-500">Used for customer payment requests and invoice QR generation.</p>
+              <h2 className="text-sm font-bold text-slate-900">UPI QR &amp; Payment Configuration</h2>
+              <p className="text-xs text-slate-500">Used for customer payment requests and printable invoice QR codes.</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
-                Company UPI VPA / ID
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Company UPI VPA / ID <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                value={settings.upiId || ''}
+                value={settings?.upiId || ''}
                 onChange={(e) => setSettings({ ...settings, upiId: e.target.value })}
                 placeholder="mountainmemories@bank"
-                className="w-full px-3 py-2 border rounded-lg text-xs font-mono"
+                className="input text-xs font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
-                Merchant / Business Name
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Merchant / Business Name <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                value={settings.upiName || ''}
+                value={settings?.upiName || ''}
                 onChange={(e) => setSettings({ ...settings, upiName: e.target.value })}
                 placeholder="Mountain and Memories Travel LLP"
-                className="w-full px-3 py-2 border rounded-lg text-xs"
+                className="input text-xs"
               />
             </div>
           </div>
         </div>
 
-        {/* Legal Identity & Tax */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100">
-            Billing & Registered Entity Information
-          </h2>
+        {/* Legal Identity & Public Contact */}
+        <div className="card p-6 sm:p-8 space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
+              <Building className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Billing &amp; Public Contact Details</h2>
+              <p className="text-xs text-slate-500">Appears on invoices, tax receipts, and the public website contact &amp; footer sections.</p>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Company Legal Name</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Company Legal Name</label>
               <input
                 type="text"
-                value={settings.companyName || ''}
+                value={settings?.companyName || ''}
                 onChange={(e) => setSettings({ ...settings, companyName: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-xs"
+                className="input text-xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">GSTIN Number</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">GSTIN Number</label>
               <input
                 type="text"
-                value={settings.gstNumber || ''}
+                value={settings?.gstNumber || ''}
                 onChange={(e) => setSettings({ ...settings, gstNumber: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-xs font-mono"
+                className="input text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Public Support Phone / WhatsApp</label>
+              <input
+                type="text"
+                value={settings?.supportPhone || ''}
+                onChange={(e) => setSettings({ ...settings, supportPhone: e.target.value })}
+                placeholder="+91 98765 43210"
+                className="input text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Public Support Email</label>
+              <input
+                type="email"
+                value={settings?.supportEmail || ''}
+                onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
+                placeholder="contact@mountainandmemories.com"
+                className="input text-xs"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Registered Address</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Registered Business Address</label>
             <textarea
               rows={2}
-              value={settings.registeredAddress || ''}
+              value={settings?.registeredAddress || ''}
               onChange={(e) => setSettings({ ...settings, registeredAddress: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg text-xs"
+              className="input resize-none text-xs"
             />
           </div>
         </div>
 
-        {/* Temporary Privacy Notice Placeholder */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-3">
-          <div className="flex items-center gap-2 text-amber-700">
+        {/* Media Consent & Privacy Notice */}
+        <div className="card p-6 sm:p-8 space-y-3 border-amber-200/80 bg-amber-50/30">
+          <div className="flex items-center gap-2 text-amber-800">
             <AlertTriangle className="w-4 h-4 text-amber-600" />
-            <h2 className="text-sm font-bold">Temporary Media Notice Placeholder (TBD-10)</h2>
+            <h2 className="text-sm font-bold">Media &amp; Data Privacy Notice</h2>
           </div>
           <p className="text-xs text-slate-500">
-            Current provisional notice displayed to customers prior to full legal review.
+            Disclosure presented to customers upon booking for photography archival and data storage.
           </p>
           <input
             type="text"
-            value={settings.privacyNotice || 'We store, alter, archive your data.'}
+            value={settings?.privacyNotice || ''}
             onChange={(e) => setSettings({ ...settings, privacyNotice: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg text-xs font-mono bg-slate-50"
+            className="input text-xs font-mono"
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-6 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs shadow transition flex items-center gap-2 disabled:opacity-50"
-        >
-          <Save className="w-4 h-4" />
-          {saving ? 'Saving Changes...' : 'Save Settings'}
-        </button>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={saving}
+            className="btn-primary text-xs flex items-center gap-2 px-6 py-2.5"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? 'Saving Changes...' : 'Save Configuration'}
+          </button>
+        </div>
       </form>
     </div>
   );

@@ -73,13 +73,13 @@ export default function Lightbox({
 
       {/* Lightbox Content Container */}
       <div
-        className="relative max-w-4xl max-h-[92vh] flex flex-col items-center justify-center bg-cream rounded-3xl p-4 sm:p-6 border border-bark/20 shadow-float animate-scaleIn"
+        className="relative max-w-4xl max-h-[92vh] flex flex-col items-center justify-center bg-[#071a0f]/92 backdrop-blur-2xl rounded-2xl p-4 sm:p-6 border border-white/20 shadow-float animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <img
-          src={item.image}
-          alt={item.title}
-          className="max-h-[66vh] w-auto max-w-full object-contain rounded-2xl shadow-nature-sm"
+          src={item.image || item.url}
+          alt={item.title || item.caption || 'Gallery photograph'}
+          className="max-h-[66vh] w-auto max-w-full object-contain rounded-xl shadow-nature-sm"
         />
 
         {/* Captions and Location metadata */}

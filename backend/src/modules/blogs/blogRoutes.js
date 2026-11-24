@@ -25,6 +25,8 @@ router.use(authenticate);
 router.post('/', requirePermission('blogs.create'), blogController.createBlog);
 router.patch('/:id', requirePermission('blogs.update_own'), blogController.updateBlog);
 router.post('/:id/hide', requirePermission('blogs.hide'), blogController.hideBlog);
+router.patch('/:id/hide', requirePermission('blogs.hide'), blogController.hideBlog);
 router.post('/:id/publish', requirePermission('blogs.publish'), blogController.publishBlog);
+router.delete('/:id', requirePermission('blogs.update_own'), blogController.deleteBlog);
 
 export default router;

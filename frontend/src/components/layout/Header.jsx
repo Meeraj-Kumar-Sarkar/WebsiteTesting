@@ -1,14 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Menu, X, Compass, ArrowRight, MapPin } from 'lucide-react';
-import { destinations } from '../../data/destinations';
+import { ChevronDown, Menu, X, Compass, ArrowRight } from 'lucide-react';
+import { frontendApi } from '../../api/client';
 
 export default function Header() {
   const [isDestOpen, setIsDestOpen]     = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [scrolled, setScrolled]         = useState(false);
+  const [destinations, setDestinations] = useState([]);
+  const [staysCount, setStaysCount]     = useState(0);
   const dropdownRef = useRef(null);
   const location    = useLocation();
+
+  useEffect(() => {
+    frontendApi.getDestinations().then(setDestinations).catch(() => {});
+    frontendApi.getSettings().then((s) => {
+      if (s?.counts?.stays !== undefined) setStaysCount(s.counts.stays);
+    }).catch(() => {});
+  }, [location.pathname]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -29,44 +38,49 @@ export default function Header() {
     setIsMobileOpen(false);
   }, [location.pathname]);
 
-  const isActive = (p) => (p === '/' ? location.pathname === '/' : location.pathname.startsWith(p));
+  const isActive = (p) => {
+    if (p === '/') return location.pathname === '/';
+    if (p === '/packages') {
+      return location.pathname.startsWith('/packages') || location.pathname.startsWith('/stays');
+    }
+    return location.pathname.startsWith(p);
+  };
 
   const navLinks = [
-    { name: 'Destinations', path: '/destinations', dropdown: true },
-    { name: 'Packages',     path: '/packages'      },
-    { name: 'Stays',        path: '/stays', badge: '48' },
-    { name: 'Gallery',      path: '/gallery'       },
-    { name: 'Blog',         path: '/blog'          },
-    { name: 'About',        path: '/about'         },
-    { name: 'Contact',      path: '/contact'       },
+    { name: 'Destinations',     path: '/destinations', dropdown: true },
+    { name: 'Stays & Packages', path: '/packages', badge: staysCount > 0 ? String(staysCount) : null },
+    { name: 'Gallery',          path: '/gallery'       },
+    { name: 'Blog',             path: '/blog'          },
+    { name: 'About',            path: '/about'         },
+    { name: 'Contact',          path: '/contact'       },
   ];
 
   return (
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-cream/90 backdrop-blur-md shadow-nature border-b border-bark/10'
-          : 'bg-cream/70 backdrop-blur-sm'
+          ? 'bg-[#05120a]/82 backdrop-blur-2xl shadow-nature border-b border-white/15'
+          : 'bg-[#05120a]/52 backdrop-blur-xl border-b border-white/10'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 select-none shrink-0">
-            <div className="w-8 h-8 bg-pine rounded-xl flex items-center justify-center shadow-nature-sm">
-              <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 fill-cream w-5 h-5" aria-hidden="true">
-                <path d="M3 19L9.5 8L13.5 14L16 10L21 19H3Z" fill="#f5f0e8"/>
-              </svg>
-            </div>
+          <Link to="/" className="flex items-center gap-3 select-none shrink-0">
+            <img
+              src="/favicon.png"
+              alt="Mountain & Memories logo"
+              className="w-9 h-9 rounded-lg shadow-nature-sm object-contain bg-white"
+            />
             <div>
-              <span className="font-serif font-bold text-base text-soil leading-none block">Mountain &amp; Memories</span>
-              <span className="text-[9px] text-sage font-medium tracking-widest uppercase">Thoughtful Journeys</span>
+              <span className="font-sans font-bold text-lg tracking-tight text-white leading-none block">Mountain &amp; Memories</span>
+              <span className="text-[10px] text-sage font-semibold tracking-[0.18em] uppercase">Himalayan Expeditions</span>
             </div>
           </Link>
 
-          {/* Desktop nav — pill group like template */}
-          <nav className="hidden lg:flex items-center gap-1 bg-beige/60 rounded-full px-2 py-1.5 border border-bark/15">
+          {/* Desktop nav */}
+          <nav className="hidden lg:flex items-center gap-1 bg-white/[0.06] backdrop-blur-md rounded-lg px-2 py-1 border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
             {navLinks.map((item) => {
               if (item.dropdown) {
                 return (
@@ -80,9 +94,8 @@ export default function Header() {
                       <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isDestOpen ? 'rotate-180' : ''}`} />
                     </button>
 
-                    {/* Dropdown */}
                     {isDestOpen && (
-                      <div className="absolute top-full left-0 mt-3 w-72 bg-cream/95 backdrop-blur-xl rounded-2xl border border-bark/15 shadow-nature-lg p-3 z-50 animate-scale-in">
+                      <div className="absolute top-full left-0 mt-3 w-72 bg-[#071a0f]/92 backdrop-blur-2xl rounded-2xl border border-white/18 shadow-nature-lg p-3 z-50 animate-scale-in">
                         <div className="flex items-center justify-between mb-2 pb-2 border-b border-bark/10">
                           <span className="text-xs font-semibold text-soil/50 uppercase tracking-wider">Regions</span>
                           <Link to="/destinations" onClick={() => setIsDestOpen(false)} className="text-xs font-medium text-pine hover:text-fern transition-colors">
@@ -90,20 +103,24 @@ export default function Header() {
                           </Link>
                         </div>
                         <div className="space-y-1">
-                          {destinations.map((dest) => (
-                            <Link
-                              key={dest.id}
-                              to={`/destinations/${dest.slug}`}
-                              onClick={() => setIsDestOpen(false)}
-                              className="flex items-center justify-between p-2 rounded-xl hover:bg-beige transition-colors group"
-                            >
-                              <div>
-                                <p className="text-sm font-medium text-soil">{dest.name}</p>
-                                <p className="text-xs text-soil/50">{dest.idealDuration}</p>
-                              </div>
-                              <ArrowRight className="w-3.5 h-3.5 text-sage group-hover:text-fern transition-colors" />
-                            </Link>
-                          ))}
+                          {destinations.length === 0 ? (
+                            <p className="text-xs text-soil/50 p-2">Explore our regional guides</p>
+                          ) : (
+                            destinations.map((dest) => (
+                              <Link
+                                key={dest.id}
+                                to={`/destinations/${dest.slug}`}
+                                onClick={() => setIsDestOpen(false)}
+                                className="flex items-center justify-between p-2 rounded-xl hover:bg-beige transition-colors group"
+                              >
+                                <div>
+                                  <p className="text-sm font-medium text-soil">{dest.name}</p>
+                                  <p className="text-xs text-soil/50">{dest.idealDuration}</p>
+                                </div>
+                                <ArrowRight className="w-3.5 h-3.5 text-sage group-hover:text-fern transition-colors" />
+                              </Link>
+                            ))
+                          )}
                         </div>
                         <div className="mt-2 pt-2 border-t border-bark/10 flex items-center justify-between text-xs">
                           <span className="text-soil/50">Multi-State Tour?</span>
@@ -134,17 +151,16 @@ export default function Header() {
           <div className="flex items-center gap-3">
             <Link
               to="/customize-trip"
-              className="hidden lg:inline-flex items-center gap-2 px-4 py-2 bg-soil text-cream text-sm font-semibold rounded-full hover:bg-pine transition-colors shadow-nature-sm"
+              className="hidden lg:inline-flex items-center gap-2 px-4 py-2 bg-sage text-[#06150a] text-xs font-bold uppercase tracking-wider rounded-md hover:bg-[#a6e645] transition-colors shadow-nature-sm"
             >
               <Compass className="w-3.5 h-3.5" />
               Plan Trip
             </Link>
 
-            {/* Mobile hamburger */}
             <button
               type="button"
               onClick={() => setIsMobileOpen(!isMobileOpen)}
-              className="lg:hidden p-2 rounded-xl bg-beige border border-bark/15 text-soil"
+              className="lg:hidden p-2 rounded-lg bg-[#0b2112] border border-bark/30 text-soil"
               aria-label="Toggle menu"
             >
               {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

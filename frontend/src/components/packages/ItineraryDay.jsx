@@ -6,7 +6,7 @@ export default function ItineraryDay({ item, defaultOpen = false }) {
   const { day, title, description, meals, stay } = item;
 
   return (
-    <div className="rounded-2xl overflow-hidden bg-white/85 backdrop-blur-sm border border-bark/15 shadow-nature-sm hover:border-bark/30 transition-all duration-300">
+    <div className="rounded-xl overflow-hidden bg-cream/85 backdrop-blur-md border border-bark/25 shadow-nature-sm hover:border-sage/40 transition-all duration-300">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}

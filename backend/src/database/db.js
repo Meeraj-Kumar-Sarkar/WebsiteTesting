@@ -10,29 +10,51 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 
-// Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Check if PostgreSQL pool should be initialized
 let pgPool = null;
 if (config.databaseUrl) {
   try {
     pgPool = new Pool({
       connectionString: config.databaseUrl,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      ssl: config.nodeEnv === 'production' ? { rejectUnauthorized: false } : false
     });
-    console.log('[Database] PostgreSQL pool initialized');
+    console.log('[Database] PostgreSQL connection pool initialized');
   } catch (err) {
-    console.warn('[Database] PostgreSQL connection initialization failed, using local persistent store fallback:', err.message);
+    console.warn('[Database] PostgreSQL pool initialization warning:', err.message);
   }
 }
 
-// In-Memory & File-backed Store Fallback
+const matchesRecordId = (item, id) => {
+  if (!item || !id) return false;
+  return (
+    item.id === id ||
+    item.empId === id ||
+    item.enquiryId === id ||
+    item.tripRequestId === id ||
+    item.invoiceId === id ||
+    item.paymentId === id ||
+    item.refundId === id ||
+    item.packageId === id ||
+    item.tripId === id ||
+    item.blogId === id ||
+    item.mediaId === id ||
+    item.destinationId === id ||
+    item.stayId === id ||
+    item.slug === id
+  );
+};
+
 class Store {
   constructor() {
-    this.data = {
+    this.data = this.getDefaultState();
+    this.load();
+  }
+
+  getDefaultState() {
+    return {
       users: [],
       departments: [],
       roles: [],
@@ -49,6 +71,8 @@ class Store {
       payments: [],
       refundRequests: [],
       packages: [],
+      destinations: [],
+      stays: [],
       itineraries: [],
       trips: [],
       tripSuppliers: [],
@@ -58,18 +82,17 @@ class Store {
       auditLogs: [],
       notifications: [],
       systemSettings: {
-        companyName: 'Mountain and Memories Travel LLP',
-        gstNumber: '02AABCM1234F1Z5',
-        registeredAddress: 'Old Manali Road, Manali, Himachal Pradesh - 175131',
-        supportEmail: 'contact@mountainandmemories.com',
-        supportPhone: '+91 98765 43210',
-        upiId: 'mountainmemories@bank',
-        upiName: 'Mountain and Memories Travel LLP',
+        companyName: config.upi.name || 'Mountain and Memories Travel LLP',
+        gstNumber: '',
+        registeredAddress: 'Manali, Himachal Pradesh, India',
+        supportEmail: config.masterAdmin.email || 'contact@mountainandmemories.com',
+        supportPhone: config.masterAdmin.phone || '+91 98765 43210',
+        upiId: config.upi.id,
+        upiName: config.upi.name,
         autoPaymentExpiryDays: 3,
-        privacyNotice: 'We store, alter, archive your data.'
+        privacyNotice: 'Customer travel and media data is securely managed in accordance with company privacy policy.'
       }
     };
-    this.load();
   }
 
   load() {
@@ -77,7 +100,15 @@ class Store {
       if (fs.existsSync(STORE_PATH)) {
         const raw = fs.readFileSync(STORE_PATH, 'utf-8');
         if (raw.trim()) {
-          this.data = { ...this.data, ...JSON.parse(raw) };
+          const parsed = JSON.parse(raw);
+          this.data = {
+            ...this.getDefaultState(),
+            ...parsed,
+            systemSettings: {
+              ...this.getDefaultState().systemSettings,
+              ...(parsed.systemSettings || {})
+            }
+          };
         }
       } else {
         this.save();
@@ -87,13 +118,62 @@ class Store {
     }
   }
 
-  save() {
+  async syncFromPostgres() {
+    if (!pgPool) return;
+    try {
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS app_collections (
+          collection_name VARCHAR(100) PRIMARY KEY,
+          payload JSONB NOT NULL,
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+      const { rows } = await pgPool.query('SELECT collection_name, payload FROM app_collections');
+      if (rows.length > 0) {
+        for (const row of rows) {
+          this.data[row.collection_name] = row.payload;
+        }
+        this.saveFileOnly();
+      } else {
+        await this.syncToPostgres();
+      }
+    } catch (err) {
+      console.warn('[Database] PostgreSQL sync skipped:', err.message);
+    }
+  }
+
+  async syncToPostgres(collectionName = null) {
+    if (!pgPool) return;
+    try {
+      const keys = collectionName ? [collectionName] : Object.keys(this.data);
+      for (const key of keys) {
+        await pgPool.query(
+          `INSERT INTO app_collections (collection_name, payload, updated_at)
+           VALUES ($1, $2::jsonb, NOW())
+           ON CONFLICT (collection_name)
+           DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
+          [key, JSON.stringify(this.data[key])]
+        );
+      }
+    } catch (err) {
+      console.warn('[Database] PostgreSQL write warning:', err.message);
+    }
+  }
+
+  saveFileOnly() {
     try {
       const tempPath = `${STORE_PATH}.tmp`;
       fs.writeFileSync(tempPath, JSON.stringify(this.data, null, 2), 'utf-8');
       fs.renameSync(tempPath, STORE_PATH);
     } catch (e) {
       console.error('[Database] Error writing store.json:', e.message);
+    }
+  }
+
+  save(collectionName = null) {
+    this.saveFileOnly();
+    if (pgPool) {
+      this.syncToPostgres(collectionName);
     }
   }
 
@@ -113,13 +193,14 @@ class Store {
   }
 
   findById(collection, id) {
-    return this.get(collection).find(item => item.id === id || item.empId === id || item.enquiryId === id || item.tripRequestId === id || item.invoiceId === id || item.tripId === id) || null;
+    if (!id) return null;
+    return this.get(collection).find(item => matchesRecordId(item, id)) || null;
   }
 
   insert(collection, item) {
     const list = this.get(collection);
     list.push(item);
-    this.save();
+    this.save(collection);
     return item;
   }
 
@@ -133,17 +214,18 @@ class Store {
       }
     }
     if (updatedCount > 0) {
-      this.save();
+      this.save(collection);
     }
     return updatedCount;
   }
 
   updateById(collection, id, updates) {
+    if (!id) return null;
     const list = this.get(collection);
-    const index = list.findIndex(item => item.id === id || item.empId === id || item.enquiryId === id || item.tripRequestId === id || item.invoiceId === id || item.tripId === id);
+    const index = list.findIndex(item => matchesRecordId(item, id));
     if (index !== -1) {
       list[index] = { ...list[index], ...updates, updatedAt: new Date().toISOString() };
-      this.save();
+      this.save(collection);
       return list[index];
     }
     return null;
@@ -154,9 +236,15 @@ class Store {
     this.data[collection] = this.get(collection).filter(item => !filterFn(item));
     const deletedCount = originalLength - this.data[collection].length;
     if (deletedCount > 0) {
-      this.save();
+      this.save(collection);
     }
     return deletedCount;
+  }
+
+  deleteById(collection, id) {
+    if (!id) return false;
+    const deleted = this.delete(collection, item => matchesRecordId(item, id));
+    return deleted > 0;
   }
 }
 

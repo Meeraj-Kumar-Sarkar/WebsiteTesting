@@ -1,16 +1,55 @@
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { store } from '../../database/db.js';
 import { generateId } from '../../utils/idGenerator.js';
+import { storageService } from '../../services/storageService.js';
 import { logAudit, notify } from '../../middleware/audit.js';
 
+function normalizeMediaAsset(m) {
+  if (!m) return null;
+  return {
+    ...m,
+    title: m.title || m.caption || m.filename || 'Himalayan Photograph',
+    image: m.url,
+    location: m.location || 'Himalayas',
+    galleryCategory: m.galleryCategory || 'landscapes'
+  };
+}
+
 export const mediaController = {
-  // 1. List media for a specific trip
+  // 1. List all media (Admin)
+  async listAllMedia(req, res) {
+    try {
+      const { visibility, category } = req.query;
+      let media = store.get('mediaAssets').map(normalizeMediaAsset);
+
+      if (visibility && visibility !== 'ALL') {
+        media = media.filter(m => m.visibility === visibility);
+      }
+      if (category && category !== 'ALL') {
+        media = media.filter(m => m.category === category);
+      }
+
+      media.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return res.json(media);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // 2. List media for a specific trip
   async getTripMedia(req, res) {
     try {
       const { tripId } = req.params;
       const { category, visibility } = req.query;
 
-      let media = store.find('mediaAssets', m => m.tripId === tripId);
+      const trip = store.findById('trips', tripId);
+      const targetTripId = trip ? trip.tripId : tripId;
+      const targetUuid = trip ? trip.id : tripId;
+
+      let media = store
+        .find('mediaAssets', m => m.tripId === targetTripId || m.tripId === targetUuid || m.tripId === tripId)
+        .map(normalizeMediaAsset);
 
       if (category && category !== 'ALL') {
         media = media.filter(m => m.category === category);
@@ -27,42 +66,60 @@ export const mediaController = {
     }
   },
 
-  // 2. Upload / Register Media Asset (Private by default)
+  // 3. Upload / Register Media Asset (Supports both multipart file upload and URL)
   async uploadMedia(req, res) {
     try {
+      const tripParam = req.params.tripId || req.body.tripId || null;
+      let resolvedUrl = req.body.url;
+      let resolvedFilename = req.body.filename;
+
+      if (req.file) {
+        const subDir = req.params.tripId ? `trips/${req.params.tripId}` : 'general';
+        resolvedUrl = storageService.getFileUrl(`${subDir}/${req.file.filename}`);
+        resolvedFilename = req.file.originalname || req.file.filename;
+      }
+
       const {
-        tripId,
-        filename,
-        url,
-        category = 'ORIGINAL', // 'ORIGINAL', 'EDITED'
-        visibility = 'PRIVATE', // 'PRIVATE', 'CUSTOMER_DELIVERY', 'PUBLIC_GALLERY'
+        title,
+        category = 'ORIGINAL',
+        galleryCategory = 'landscapes',
+        visibility = 'PRIVATE',
         caption,
+        location = 'Himalayas',
+        altitude = '',
         sourceType = 'COMPANY_CAPTURED',
         rightsAttribution,
         consentReference
       } = req.body;
 
-      if (!tripId || !url) {
-        return res.status(400).json({ error: 'Trip ID and media URL/key are required.' });
+      if (!resolvedUrl) {
+        return res.status(400).json({ error: 'A media file or URL is required.' });
       }
+
+      const trip = tripParam ? store.findById('trips', tripParam) : null;
+      const tripId = trip ? trip.tripId : (tripParam || 'GENERAL');
 
       const mediaId = generateId('MED');
 
-      const newAsset = {
+      const newAsset = normalizeMediaAsset({
         id: uuidv4(),
         mediaId,
         tripId,
-        filename: filename || `asset-${Date.now()}.jpg`,
-        url,
-        category: category.toUpperCase(),
-        visibility: visibility.toUpperCase(), // defaults to PRIVATE
-        caption: caption || '',
+        filename: resolvedFilename || path.basename(resolvedUrl) || `asset-${Date.now()}.jpg`,
+        url: resolvedUrl,
+        title: title || caption || resolvedFilename || 'Himalayan Photograph',
+        category: String(category).toUpperCase(),
+        galleryCategory,
+        visibility: String(visibility).toUpperCase(),
+        caption: caption || title || '',
+        location,
+        altitude,
         sourceType,
         rightsAttribution: rightsAttribution || 'Mountain and Memories In-House Media Team',
-        consentReference: consentReference || 'Temporary notice: We store, alter, archive your data.',
-        uploadedBy: req.user.empId,
+        consentReference: consentReference || store.data.systemSettings?.privacyNotice || '',
+        uploadedBy: req.user?.empId || 'SYSTEM',
         createdAt: new Date().toISOString()
-      };
+      });
 
       store.insert('mediaAssets', newAsset);
       logAudit(req, 'MEDIA_ASSET_UPLOADED', 'MEDIA', mediaId, { tripId, visibility: newAsset.visibility });
@@ -73,14 +130,30 @@ export const mediaController = {
     }
   },
 
-  // 3. Update Media Visibility (e.g. mark for Public Gallery or Customer Delivery)
+  // 4. Standalone File Upload Helper (for package/blog cover images)
+  async uploadFileOnly(req, res) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file provided.' });
+      }
+      const url = storageService.getFileUrl(`general/${req.file.filename}`);
+      return res.status(201).json({
+        url,
+        filename: req.file.originalname || req.file.filename
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // 5. Update Media Visibility / Metadata
   async updateVisibility(req, res) {
     try {
       const { id } = req.params;
-      const { visibility, caption } = req.body;
+      const { visibility, caption, title, location, galleryCategory } = req.body;
       const allowed = ['PRIVATE', 'CUSTOMER_DELIVERY', 'PUBLIC_GALLERY'];
 
-      if (!allowed.includes(visibility)) {
+      if (visibility && !allowed.includes(visibility)) {
         return res.status(400).json({ error: `Invalid visibility. Must be one of: ${allowed.join(', ')}` });
       }
 
@@ -89,41 +162,69 @@ export const mediaController = {
         return res.status(404).json({ error: 'Media asset not found.' });
       }
 
-      const updates = { visibility };
+      const updates = {};
+      if (visibility) updates.visibility = visibility;
       if (caption !== undefined) updates.caption = caption;
+      if (title !== undefined) updates.title = title;
+      if (location !== undefined) updates.location = location;
+      if (galleryCategory !== undefined) updates.galleryCategory = galleryCategory;
 
-      store.updateById('mediaAssets', asset.id, updates);
+      const updated = store.updateById('mediaAssets', asset.id, updates);
       logAudit(req, 'MEDIA_VISIBILITY_UPDATED', 'MEDIA', asset.mediaId, {
         oldVisibility: asset.visibility,
-        newVisibility: visibility
+        newVisibility: visibility || asset.visibility
       });
 
-      return res.json({ message: `Media visibility changed to ${visibility}.`, asset: { ...asset, ...updates } });
+      return res.json({
+        message: `Media updated successfully.`,
+        asset: normalizeMediaAsset(updated)
+      });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
   },
 
-  // 4. Customer Archive Review & Share Link Generation
+  // 6. Delete Media Asset
+  async deleteMedia(req, res) {
+    try {
+      const { id } = req.params;
+      const asset = store.findById('mediaAssets', id);
+      if (!asset) {
+        return res.status(404).json({ error: 'Media asset not found.' });
+      }
+
+      store.deleteById('mediaAssets', asset.id);
+      logAudit(req, 'MEDIA_ASSET_DELETED', 'MEDIA', asset.mediaId);
+
+      return res.json({ message: 'Media asset deleted.' });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // 7. Customer Archive Review & Share Link Generation
   async shareCustomerArchive(req, res) {
     try {
       const { tripId } = req.params;
       const { expiryDays = 14, customerEmail } = req.body;
 
-      const trip = store.findOne('trips', t => t.tripId === tripId);
+      const trip = store.findById('trips', tripId);
       if (!trip) {
         return res.status(404).json({ error: 'Trip not found.' });
       }
 
-      // Collect only media marked as CUSTOMER_DELIVERY (or approved originals)
-      const deliveryMedia = store.find('mediaAssets', m => m.tripId === tripId && (m.visibility === 'CUSTOMER_DELIVERY' || m.visibility === 'PUBLIC_GALLERY'));
+      const deliveryMedia = store.find(
+        'mediaAssets',
+        m => (m.tripId === trip.tripId || m.tripId === trip.id) &&
+          (m.visibility === 'CUSTOMER_DELIVERY' || m.visibility === 'PUBLIC_GALLERY')
+      );
 
       const shareToken = uuidv4();
       const expiresAt = new Date(Date.now() + expiryDays * 86400000).toISOString();
 
       const archive = {
         id: uuidv4(),
-        tripId,
+        tripId: trip.tripId,
         shareToken,
         itemCount: deliveryMedia.length,
         expiresAt,
@@ -135,7 +236,7 @@ export const mediaController = {
 
       store.insert('mediaArchives', archive);
 
-      logAudit(req, 'CUSTOMER_ARCHIVE_SHARED', 'TRIP', tripId, {
+      logAudit(req, 'CUSTOMER_ARCHIVE_SHARED', 'TRIP', trip.tripId, {
         itemCount: deliveryMedia.length,
         expiresAt
       });
@@ -152,17 +253,53 @@ export const mediaController = {
       return res.json({
         message: 'Customer media archive package generated.',
         archive,
-        deliveryMedia
+        deliveryMedia: deliveryMedia.map(normalizeMediaAsset)
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });
     }
   },
 
-  // 5. Public Gallery (Accessible without authentication by website)
+  // 8. Public Archive Retrieval by Share Token
+  async getSharedArchive(req, res) {
+    try {
+      const { shareToken } = req.params;
+      const archive = store.findOne('mediaArchives', a => a.shareToken === shareToken);
+      if (!archive) {
+        return res.status(404).json({ error: 'Archive not found.' });
+      }
+
+      if (new Date() > new Date(archive.expiresAt)) {
+        return res.status(410).json({ error: 'This archive share link has expired.' });
+      }
+
+      const trip = store.findById('trips', archive.tripId);
+      const media = store
+        .find('mediaAssets', m => m.tripId === archive.tripId && (m.visibility === 'CUSTOMER_DELIVERY' || m.visibility === 'PUBLIC_GALLERY'))
+        .map(normalizeMediaAsset);
+
+      return res.json({
+        archive,
+        trip: trip ? {
+          tripId: trip.tripId,
+          customerName: trip.customerName,
+          packageName: trip.packageName,
+          travelDates: trip.travelDates
+        } : null,
+        media
+      });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  },
+
+  // 9. Public Gallery (Accessible without authentication by website)
   async getPublicGallery(req, res) {
     try {
-      const assets = store.find('mediaAssets', m => m.visibility === 'PUBLIC_GALLERY');
+      const assets = store
+        .find('mediaAssets', m => m.visibility === 'PUBLIC_GALLERY')
+        .map(normalizeMediaAsset);
+      assets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       return res.json(assets);
     } catch (err) {
       return res.status(500).json({ error: err.message });

@@ -2,13 +2,13 @@ import React from 'react';
 
 export default function Badge({ children, variant = 'sage', size = 'md', className = '' }) {
   const variants = {
-    sage:   'bg-sage/20 text-pine border border-sage/40',
-    forest: 'bg-pine text-cream border border-pine/40',
-    stone:  'bg-beige text-soil border border-bark/20',
-    white:  'bg-cream text-soil border border-bark/20',
-    dark:   'bg-soil text-cream border border-soil/40',
-    fern:   'bg-fern/20 text-pine border border-fern/30',
-    gold:   'bg-fern/20 text-pine border border-fern/30',
+    sage:   'bg-[#05140b]/70 backdrop-blur-md text-sage border border-sage/40',
+    forest: 'bg-pine text-cream border border-white/20',
+    stone:  'bg-white/10 backdrop-blur-md text-soil border border-white/15',
+    white:  'bg-[#05140b]/78 backdrop-blur-md text-cream border border-white/20',
+    dark:   'bg-[#041008]/85 backdrop-blur-md text-cream border border-white/15',
+    fern:   'bg-fern/80 backdrop-blur-md text-cream border border-white/20',
+    gold:   'bg-[#05140b]/75 backdrop-blur-md text-sage border border-sage/40',
   };
 
   const sizes = {
@@ -18,7 +18,7 @@ export default function Badge({ children, variant = 'sage', size = 'md', classNa
   };
 
   return (
-    <span className={`inline-flex items-center gap-1 font-medium rounded-full select-none ${variants[variant] || variants.sage} ${sizes[size] || sizes.md} ${className}`}>
+    <span className={`inline-flex items-center gap-1 font-semibold tracking-wider uppercase rounded select-none ${variants[variant] || variants.sage} ${sizes[size] || sizes.md} ${className}`}>
       {children}
     </span>
   );

@@ -73,7 +73,7 @@ export default function CustomizeTrip() {
             gridInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
           }`}
         >
-          <div className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-bark/15 shadow-nature-sm hover:shadow-nature-md hover:-translate-y-1 transition-all duration-300">
+          <div className="p-6 bg-cream/85 backdrop-blur-md rounded-xl border border-bark/25 shadow-nature-sm hover:shadow-nature-md hover:-translate-y-1 transition-all duration-300">
             <div className="w-12 h-12 rounded-2xl bg-sage/20 text-pine mx-auto flex items-center justify-center mb-4 shadow-sm">
               <Sparkles className="w-5 h-5" />
             </div>
@@ -83,7 +83,7 @@ export default function CustomizeTrip() {
             </p>
           </div>
 
-          <div className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-bark/15 shadow-nature-sm hover:shadow-nature-md hover:-translate-y-1 transition-all duration-300">
+          <div className="p-6 bg-cream/85 backdrop-blur-md rounded-xl border border-bark/25 shadow-nature-sm hover:shadow-nature-md hover:-translate-y-1 transition-all duration-300">
             <div className="w-12 h-12 rounded-2xl bg-sage/20 text-pine mx-auto flex items-center justify-center mb-4 shadow-sm">
               <ShieldCheck className="w-5 h-5" />
             </div>
@@ -93,7 +93,7 @@ export default function CustomizeTrip() {
             </p>
           </div>
 
-          <div className="p-6 bg-white/80 backdrop-blur-sm rounded-2xl border border-bark/15 shadow-nature-sm hover:shadow-nature-md hover:-translate-y-1 transition-all duration-300">
+          <div className="p-6 bg-cream/85 backdrop-blur-md rounded-xl border border-bark/25 shadow-nature-sm hover:shadow-nature-md hover:-translate-y-1 transition-all duration-300">
             <div className="w-12 h-12 rounded-2xl bg-sage/20 text-pine mx-auto flex items-center justify-center mb-4 shadow-sm">
               <HeartHandshake className="w-5 h-5" />
             </div>

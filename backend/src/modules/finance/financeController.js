@@ -164,8 +164,8 @@ export const financeController = {
         balanceDue: totalAmount,
         dueDate: calculatedDueDate,
         status: 'UNPAID',
-        upiId: config.upi.id,
-        upiName: config.upi.name,
+        upiId: store.data.systemSettings?.upiId || config.upi.id,
+        upiName: store.data.systemSettings?.upiName || config.upi.name,
         itemizedNotes: itemizedNotes || `Comprehensive booking charges for ${request.packageName} (${request.travellerCount} travellers)`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
@@ -218,10 +218,12 @@ export const financeController = {
         return res.status(404).json({ error: 'Invoice not found.' });
       }
 
-      const upiPayUrl = `upi://pay?pa=${encodeURIComponent(config.upi.id)}&pn=${encodeURIComponent(config.upi.name)}&am=${invoice.balanceDue}&cu=INR&tn=${encodeURIComponent(`MM Trip ${invoice.tripRequestId}`)}`;
+      const settings = store.data.systemSettings || {};
+      const resolvedUpiId = settings.upiId || invoice.upiId || config.upi.id;
+      const resolvedUpiName = settings.upiName || invoice.upiName || config.upi.name;
+      const upiPayUrl = `upi://pay?pa=${encodeURIComponent(resolvedUpiId)}&pn=${encodeURIComponent(resolvedUpiName)}&am=${invoice.balanceDue}&cu=INR&tn=${encodeURIComponent(`MM Trip ${invoice.tripRequestId}`)}`;
 
       const payments = store.find('payments', p => p.invoiceId === invoice.invoiceId);
-      const settings = store.data.systemSettings;
 
       return res.json({
         invoice,
@@ -234,8 +236,8 @@ export const financeController = {
           supportPhone: settings.supportPhone
         },
         upi: {
-          upiId: config.upi.id,
-          upiName: config.upi.name,
+          upiId: resolvedUpiId,
+          upiName: resolvedUpiName,
           qrPayload: upiPayUrl
         }
       });

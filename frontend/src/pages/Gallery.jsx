@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import GalleryGrid from '../components/gallery/GalleryGrid';
-import { galleryCategories, galleryItems } from '../data/gallery';
+import { galleryCategories } from '../data/gallery';
+import { frontendApi } from '../api/client';
 
 function useInView(threshold = 0.12) {
   const ref = useRef(null);
@@ -18,30 +19,35 @@ function useInView(threshold = 0.12) {
 
 export default function Gallery() {
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [heroRef, heroInView] = useInView(0.08);
-  const [galleryRef, galleryInView] = useInView(0.05);
+  const [galleryItems, setGalleryItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    frontendApi.getPublicGallery()
+      .then((res) => setGalleryItems(Array.isArray(res) ? res : []))
+      .catch(() => setGalleryItems([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredItems = selectedCategory === 'all'
     ? galleryItems
-    : galleryItems.filter((item) => item.category === selectedCategory);
+    : galleryItems.filter((item) => (item.galleryCategory || item.category) === selectedCategory);
 
   return (
-    <div className="bg-cream pb-20">
+    <div className="bg-transparent pb-20 min-h-[70vh]">
 
       {/* Header Banner */}
-      <div className="bg-gradient-to-b from-beige to-cream py-14 px-4 sm:px-6 lg:px-8 mb-10 border-b border-bark/20">
-        <div
-          ref={heroRef}
-          className={`max-w-5xl mx-auto text-center transition-all duration-700 ease-out ${heroInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-        >
-          <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium tracking-widest uppercase px-4 py-1 mb-5">
+      <div className="page-hero py-14 px-4 sm:px-6 lg:px-8 mb-10">
+        <div className="max-w-5xl mx-auto text-center animate-fade-up">
+          <span className="section-label mb-5">
             Himalayan visual archive
           </span>
-          <h1 className="font-serif text-3xl sm:text-5xl font-bold text-soil">
+          <h1 className="font-sans text-3xl sm:text-5xl font-extrabold text-white">
             Moments, stays &amp; landscapes
           </h1>
-          <p className="mt-4 text-sm text-soil/70 max-w-2xl mx-auto leading-relaxed">
-            A window into the high passes, tranquil apple valleys, hand-carved houseboats, and silent monasteries across our routes.
+          <p className="mt-4 text-sm sm:text-base text-soil/80 max-w-2xl mx-auto leading-relaxed">
+            A window into the high passes, tranquil apple valleys, timber sanctuaries, and silent monasteries across our routes.
           </p>
         </div>
       </div>
@@ -57,10 +63,10 @@ export default function Gallery() {
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-1.5 text-xs font-medium rounded-full border transition-colors cursor-pointer ${
+                className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-pine text-cream border-pine shadow-nature-sm'
-                    : 'bg-cream text-soil border-bark/25 hover:bg-beige'
+                    ? 'bg-sage text-[#06150a] border-sage shadow-nature-sm'
+                    : 'bg-white/[0.06] backdrop-blur-md text-soil/85 border-white/15 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {cat.name}
@@ -69,18 +75,24 @@ export default function Gallery() {
           })}
         </div>
 
-        {/* Gallery Grid & Lightbox */}
-        <div
-          ref={galleryRef}
-          className={`transition-all duration-700 ease-out ${galleryInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-        >
-          <GalleryGrid items={filteredItems} />
-        </div>
-
-        {/* Note on imagery */}
-        <div className="mt-12 p-4 bg-beige rounded-2xl border border-bark/20 text-center text-sm text-soil/60 max-w-2xl mx-auto">
-          <span>* Visual archive features representative photography from Spiti, Ladakh, Kashmir, and Garhwal demonstration voyages.</span>
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[0, 1, 2, 3, 4, 5].map((n) => (
+              <div key={n} className="aspect-[4/3] rounded-2xl shimmer border border-white/10" />
+            ))}
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="glass-card p-10 text-center max-w-lg mx-auto">
+            <h3 className="font-sans text-xl font-bold text-white">No photographs in this gallery view yet</h3>
+            <p className="text-sm text-soil/80 mt-2">
+              Expedition photographs promoted to the public gallery by our media team will appear here automatically.
+            </p>
+          </div>
+        ) : (
+          <div className="animate-fade-up">
+            <GalleryGrid items={filteredItems} />
+          </div>
+        )}
 
       </div>
 

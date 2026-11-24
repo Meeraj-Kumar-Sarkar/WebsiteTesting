@@ -21,6 +21,7 @@ import mediaRoutes from './modules/media/mediaRoutes.js';
 import blogRoutes from './modules/blogs/blogRoutes.js';
 import notificationRoutes from './modules/notifications/notificationRoutes.js';
 import reportRoutes from './modules/reports/reportRoutes.js';
+import publicRoutes from './modules/public/publicRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,9 +31,11 @@ const app = express();
 // Cross-Origin Resource Sharing
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, or same-origin)
     if (!origin) return callback(null, true);
-    return callback(null, true); // Dev-friendly permissive CORS
+    if (config.corsOrigins.includes('*') || config.corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -56,6 +59,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Module Routes
+app.use('/api/public', publicRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/organization', departmentRoutes);
@@ -73,7 +77,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 
 // 404 Route
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({ error: `Cannot ${req.method} ${req.originalUrl}` });
 });
 

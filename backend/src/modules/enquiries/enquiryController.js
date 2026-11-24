@@ -8,7 +8,7 @@ export const enquiryController = {
   async listEnquiries(req, res) {
     try {
       const { status, source, search, includeArchived } = req.query;
-      let enquiries = store.get('enquiries');
+      let enquiries = [...store.get('enquiries')];
 
       if (includeArchived !== 'true') {
         enquiries = enquiries.filter(e => !e.isArchived);
@@ -33,7 +33,6 @@ export const enquiryController = {
         );
       }
 
-      // Sort newest first
       enquiries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       return res.json(enquiries);
@@ -42,57 +41,75 @@ export const enquiryController = {
     }
   },
 
-  // 2. Ingest Enquiry (Used by Website form or Sales entry)
+  // 2. Ingest Enquiry (Used by Website forms or Sales entry)
   async createEnquiry(req, res) {
     try {
       const {
         source = 'WEBSITE',
         customerName,
+        name,
         phone,
         whatsappNumber,
         email,
         selectedPackage,
+        destination,
+        subject,
         travelDates,
-        travellerCount = 1,
-        message
+        travellerCount,
+        travellers,
+        message,
+        notes
       } = req.body;
 
-      if (!customerName || !phone) {
+      const resolvedName = (customerName || name || '').trim();
+      const resolvedPhone = (phone || '').trim();
+
+      if (!resolvedName || !resolvedPhone) {
         return res.status(400).json({ error: 'Customer name and phone number are required.' });
       }
 
       const enquiryId = generateId('ENQ');
 
+      // Parse traveller count if passed as string like "2 Adults" or "3-4 People"
+      let parsedTravellers = parseInt(travellerCount, 10);
+      if (isNaN(parsedTravellers) && typeof travellers === 'string') {
+        const match = travellers.match(/\d+/);
+        parsedTravellers = match ? parseInt(match[0], 10) : 1;
+      } else if (isNaN(parsedTravellers) && typeof travellers === 'number') {
+        parsedTravellers = travellers;
+      }
+      if (!parsedTravellers || parsedTravellers < 1) {
+        parsedTravellers = 1;
+      }
+
       // Duplicate Detection Algorithm
       const existing = store.find('enquiries', e => !e.isArchived);
-      const isProbableDuplicate = existing.some(e => {
-        const cleanPhone1 = phone.replace(/\D/g, '');
+      const cleanPhone1 = resolvedPhone.replace(/\D/g, '');
+      const matchedDuplicate = existing.find(e => {
+        if (e.status === 'CLOSED' || e.status === 'REJECTED') return false;
         const cleanPhone2 = e.phone ? e.phone.replace(/\D/g, '') : '';
-        const samePhone = cleanPhone1 && cleanPhone2 && cleanPhone1.endsWith(cleanPhone2.slice(-10));
-        const sameEmail = email && e.email && email.toLowerCase() === e.email.toLowerCase();
-        return (samePhone || sameEmail) && (e.status !== 'CLOSED' && e.status !== 'REJECTED');
+        const samePhone = cleanPhone1.length >= 8 && cleanPhone2.length >= 8 && cleanPhone1.slice(-10) === cleanPhone2.slice(-10);
+        const sameEmail = email && e.email && email.trim().toLowerCase() === e.email.trim().toLowerCase();
+        return samePhone || sameEmail;
       });
 
-      const matchedDuplicate = isProbableDuplicate ? existing.find(e => {
-        const cleanPhone1 = phone.replace(/\D/g, '');
-        const cleanPhone2 = e.phone ? e.phone.replace(/\D/g, '') : '';
-        return cleanPhone1.endsWith(cleanPhone2.slice(-10)) || (email && e.email && email.toLowerCase() === e.email.toLowerCase());
-      }) : null;
+      const resolvedPackage = selectedPackage || destination || subject || 'Custom Himalayan Inquiry';
+      const resolvedMessage = message || notes || '';
 
       const newEnquiry = {
         id: uuidv4(),
         enquiryId,
-        source: source.toUpperCase(),
-        customerName: customerName.trim(),
-        phone: phone.trim(),
-        whatsappNumber: whatsappNumber ? whatsappNumber.trim() : phone.trim(),
+        source: String(source).toUpperCase(),
+        customerName: resolvedName,
+        phone: resolvedPhone,
+        whatsappNumber: whatsappNumber ? whatsappNumber.trim() : resolvedPhone,
         email: email ? email.trim().toLowerCase() : null,
-        selectedPackage: selectedPackage || 'Custom Spiti Exploration',
-        travelDates: travelDates || 'TBD',
-        travellerCount: parseInt(travellerCount, 10) || 1,
-        message: message || '',
+        selectedPackage: resolvedPackage,
+        travelDates: travelDates || 'Flexible / TBD',
+        travellerCount: parsedTravellers,
+        message: resolvedMessage,
         status: 'NEW',
-        isDuplicate: Boolean(isProbableDuplicate),
+        isDuplicate: Boolean(matchedDuplicate),
         duplicateOfEnquiryId: matchedDuplicate ? matchedDuplicate.enquiryId : null,
         isArchived: false,
         createdBy: req.user ? req.user.empId : 'WEBSITE',
@@ -105,14 +122,19 @@ export const enquiryController = {
       // Notification to Sales
       notify({
         recipientDept: 'SALES',
-        title: isProbableDuplicate ? 'Duplicate Enquiry Detected' : 'New Travel Enquiry Received',
-        message: `${customerName} enquired for ${newEnquiry.selectedPackage} (${newEnquiry.travelDates}). Phone: ${phone}`,
+        title: matchedDuplicate ? 'Duplicate Enquiry Detected' : 'New Travel Enquiry Received',
+        message: `${resolvedName} enquired for ${newEnquiry.selectedPackage} (${newEnquiry.travelDates}). Phone: ${resolvedPhone}`,
         category: 'ENQUIRY',
         linkedType: 'ENQUIRY',
         linkedId: enquiryId
       });
 
-      logAudit(req, 'ENQUIRY_CREATED', 'ENQUIRY', enquiryId, { source, customerName, isDuplicate: newEnquiry.isDuplicate });
+      logAudit(req, 'ENQUIRY_CREATED', 'ENQUIRY', enquiryId, {
+        source: newEnquiry.source,
+        customerName: resolvedName,
+        selectedPackage: resolvedPackage,
+        isDuplicate: newEnquiry.isDuplicate
+      });
 
       return res.status(201).json({
         message: 'Enquiry received successfully.',
@@ -211,7 +233,7 @@ export const enquiryController = {
   // 6. Merge Duplicate Enquiries
   async mergeEnquiry(req, res) {
     try {
-      const { id } = req.params; // Duplicate enquiry to merge
+      const { id } = req.params;
       const { targetEnquiryId, mergeNotes } = req.body;
 
       const sourceEnquiry = store.findById('enquiries', id);
@@ -221,14 +243,12 @@ export const enquiryController = {
         return res.status(404).json({ error: 'Source or target enquiry not found.' });
       }
 
-      // Mark source as merged and archived
       store.updateById('enquiries', sourceEnquiry.id, {
         status: 'CLOSED',
         isArchived: true,
         mergedInto: targetEnquiry.enquiryId
       });
 
-      // Transfer notes to target
       const notes = store.find('enquiryNotes', n => n.enquiryId === sourceEnquiry.enquiryId);
       for (const n of notes) {
         store.insert('enquiryNotes', {
@@ -239,7 +259,6 @@ export const enquiryController = {
         });
       }
 
-      // Add merge note on target
       store.insert('enquiryNotes', {
         id: uuidv4(),
         enquiryId: targetEnquiry.enquiryId,

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, ChevronRight, ChevronLeft, Send, AlertCircle, Compass, ShieldCheck } from 'lucide-react';
-import { destinations } from '../../data/destinations';
+import { frontendApi } from '../../api/client';
 import Button from '../common/Button';
 
 const inputCls = (hasError) =>
@@ -18,7 +18,15 @@ const chipCls = (active) =>
 export default function CustomizeTripForm({ initialDestination = '', initialStay = '' }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [enquiryId, setEnquiryId] = useState('');
   const [errors, setErrors] = useState({});
+  const [destinations, setDestinations] = useState([]);
+
+  useEffect(() => {
+    frontendApi.getDestinations().then(setDestinations).catch(() => {});
+  }, []);
 
   const [formData, setFormData] = useState({
     destination: initialDestination || 'himachal-pradesh',
@@ -88,29 +96,45 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
   const handleSubmit = async (ev) => {
     ev.preventDefault();
     if (!validateStep(3)) return;
+    setSubmitting(true);
+    setSubmitError('');
     try {
-      await fetch('http://localhost:5000/api/enquiries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.fullName, email: formData.email, phone: formData.phone, source: 'WEBSITE',
-          notes: [
-            `Destination: ${formData.destination}`,
-            formData.customDestinationNotes && `Notes: ${formData.customDestinationNotes}`,
-            `Start Date: ${formData.startDate}`, `Duration: ${formData.duration}`,
-            `Travellers: ${formData.travellers}`, `Budget/person: ${formData.budgetPerPerson}`,
-            `Accommodation: ${formData.accommodationTier}`, `Activities: ${formData.activities.join(', ')}`,
-            formData.additionalNotes && `Additional: ${formData.additionalNotes}`,
-            `Contact Preference: ${formData.contactPreference}`,
-          ].filter(Boolean).join('\n'),
-        }),
+      const destName = destinations.find(d => d.slug === formData.destination)?.name || formData.destination;
+      const res = await frontendApi.submitEnquiry({
+        source: 'WEBSITE',
+        customerName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        whatsappNumber: formData.phone,
+        selectedPackage: `Custom Journey: ${destName}`,
+        travelDates: `${formData.startDate} (${formData.duration})`,
+        travellers: formData.travellers,
+        message: [
+          `Destination: ${destName}`,
+          formData.customDestinationNotes && `Stay Notes: ${formData.customDestinationNotes}`,
+          `Start Date: ${formData.startDate}`,
+          `Duration: ${formData.duration}`,
+          `Travellers: ${formData.travellers}`,
+          `Budget/person: ${formData.budgetPerPerson}`,
+          `Accommodation Tier: ${formData.accommodationTier}`,
+          `Activities: ${formData.activities.join(', ')}`,
+          formData.additionalNotes && `Special Requests: ${formData.additionalNotes}`,
+          `Contact Preference: ${formData.contactPreference}`,
+        ].filter(Boolean).join('\n'),
       });
-    } catch { /* backend may not be running in dev */ }
-    setIsSubmitted(true);
+      setEnquiryId(res.enquiry?.enquiryId || '');
+      setIsSubmitted(true);
+    } catch (err) {
+      setSubmitError(err.message || 'Unable to submit enquiry. Please check your connection and try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReset = () => {
-    setIsSubmitted(false); setCurrentStep(1);
+    setIsSubmitted(false);
+    setCurrentStep(1);
+    setEnquiryId('');
     setFormData({
       destination: 'himachal-pradesh', customDestinationNotes: '', startDate: '', endDate: '',
       duration: '7-9 Days', travellers: '2 Adults', budgetPerPerson: '₹35,000 – ₹50,000',
@@ -125,15 +149,16 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
         <div className="w-14 h-14 rounded-full bg-fern/20 text-fern mx-auto flex items-center justify-center mb-5">
           <Check className="w-7 h-7" />
         </div>
-        <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-sage/20 text-pine border border-sage/40 mb-3">
-          Prototype Demo
-        </span>
+        {enquiryId && (
+          <span className="inline-block px-3 py-1 text-xs font-mono font-bold rounded-full bg-sage/20 text-pine border border-sage/40 mb-3">
+            Reference ID: {enquiryId}
+          </span>
+        )}
         <h3 className="font-serif text-2xl sm:text-3xl font-bold text-soil">Trip Blueprint Requested!</h3>
         <p className="mt-2 text-sm text-soil/70 leading-relaxed max-w-lg mx-auto">
-          Thank you, <strong>{formData.fullName}</strong>. Your custom travel blueprint has been logged locally.
+          Thank you, <strong>{formData.fullName}</strong>. Your custom travel inquiry has been received by our Sales &amp; Operations team.
         </p>
 
-        {/* Summary */}
         <div className="my-6 p-4 bg-beige rounded-xl border border-bark/20 text-left text-sm space-y-1.5 text-soil">
           <div className="font-semibold text-pine pb-1.5 border-b border-bark/20">Summary of your request</div>
           <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
@@ -145,11 +170,6 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
             <div><span className="text-soil/50">Start Date:</span> <strong>{formData.startDate || 'Flexible'}</strong></div>
           </div>
           <div className="pt-1.5 border-t border-bark/15 text-xs"><span className="text-soil/50">Highlights:</span> {formData.activities.join(', ')}</div>
-        </div>
-
-        <div className="flex items-center justify-center gap-2 text-xs text-soil/60 mb-5">
-          <ShieldCheck className="w-4 h-4 text-fern" />
-          <span><strong>Note:</strong> This form demonstrates client-side progression. No live booking is dispatched.</span>
         </div>
 
         <Button onClick={handleReset} variant="secondary" size="md">Plan Another Trip</Button>
@@ -176,11 +196,17 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
             <Compass className="w-3.5 h-3.5 text-sage" />Custom Route
           </div>
         </div>
-        {/* Progress bar */}
         <div className="w-full bg-cream/20 h-2 rounded-full overflow-hidden">
           <div className="bg-sage h-2 rounded-full transition-all duration-300" style={{ width: `${(currentStep / 3) * 100}%` }} />
         </div>
       </div>
+
+      {submitError && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{submitError}</span>
+        </div>
+      )}
 
       {/* Form body */}
       <form onSubmit={handleSubmit} className="px-1 space-y-5">
@@ -195,8 +221,14 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
                 onChange={(e) => handleInputChange('destination', e.target.value)}
                 className={inputCls(errors.destination)}
               >
+                <option value="himachal-pradesh">Himachal Pradesh &amp; Spiti</option>
+                <option value="uttarakhand">Uttarakhand &amp; Garhwal</option>
+                <option value="ladakh">Ladakh</option>
+                <option value="jammu-and-kashmir">Jammu &amp; Kashmir</option>
                 <option value="open">Open to suggestions / Guide me</option>
-                {destinations.map((d) => <option key={d.slug} value={d.slug}>{d.name} ({d.idealDuration})</option>)}
+                {destinations
+                  .filter(d => !['himachal-pradesh', 'uttarakhand', 'ladakh', 'jammu-and-kashmir'].includes(d.slug))
+                  .map((d) => <option key={d.slug} value={d.slug}>{d.name} ({d.idealDuration})</option>)}
               </select>
               {errors.destination && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />{errors.destination}</p>}
             </div>
@@ -261,7 +293,7 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-soil/70 mb-1.5">Experiences & Activities *</label>
+              <label className="block text-xs font-semibold uppercase text-soil/70 mb-1.5">Experiences &amp; Activities *</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {availableActivities.map((act) => {
                   const checked = formData.activities.includes(act);
@@ -294,7 +326,6 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
         {/* STEP 3 */}
         {currentStep === 3 && (
           <div className="space-y-4">
-            {/* Quick review */}
             <div className="p-4 bg-beige rounded-xl border border-bark/20 space-y-1 text-xs">
               <div className="font-semibold text-pine pb-1.5 border-b border-bark/20 flex items-center justify-between">
                 <span>Trip Overview</span>
@@ -345,7 +376,7 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
 
             <div className="flex items-center gap-2 text-xs text-soil/60 bg-beige rounded-xl p-3 border border-bark/20">
               <ShieldCheck className="w-4 h-4 text-fern flex-shrink-0" />
-              We respect your privacy. No spam. Prototype client-side interaction only.
+              Your details are transmitted securely to our Sales &amp; Operations desk.
             </div>
           </div>
         )}
@@ -358,7 +389,7 @@ export default function CustomizeTripForm({ initialDestination = '', initialStay
           }
           {currentStep < 3
             ? <Button type="button" onClick={nextStep} variant="primary" size="md" icon={ChevronRight} iconPosition="right">Next Step</Button>
-            : <Button type="submit" variant="gold" size="md" icon={Send} iconPosition="right">Submit Journey Plan</Button>
+            : <Button type="submit" disabled={submitting} variant="gold" size="md" icon={Send} iconPosition="right">{submitting ? 'Submitting...' : 'Submit Journey Plan'}</Button>
           }
         </div>
       </form>

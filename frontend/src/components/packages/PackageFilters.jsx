@@ -1,12 +1,12 @@
 import React from 'react';
 import { Filter, RotateCcw } from 'lucide-react';
-import { destinations } from '../../data/destinations';
 
 export default function PackageFilters({
   filters,
   onFilterChange,
   onResetFilters,
-  totalResults
+  totalResults,
+  destinations = []
 }) {
   return (
     <div className="bg-cream/90 backdrop-blur-md rounded-2xl p-5 sm:p-6 border border-bark/15 shadow-nature-sm mb-10">
@@ -49,11 +49,11 @@ export default function PackageFilters({
           <select
             value={filters.destination}
             onChange={(e) => onFilterChange('destination', e.target.value)}
-            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
+            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-[#102c18] focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
           >
             <option value="all">All Himalayan Regions</option>
             {destinations.map((d) => (
-              <option key={d.slug} value={d.slug}>
+              <option key={d.slug || d.id} value={d.slug || d.id}>
                 {d.name}
               </option>
             ))}
@@ -68,7 +68,7 @@ export default function PackageFilters({
           <select
             value={filters.duration}
             onChange={(e) => onFilterChange('duration', e.target.value)}
-            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
+            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-[#102c18] focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
           >
             <option value="all">Any Duration</option>
             <option value="short">Short (5 - 6 Days)</option>
@@ -85,7 +85,7 @@ export default function PackageFilters({
           <select
             value={filters.tripType}
             onChange={(e) => onFilterChange('tripType', e.target.value)}
-            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
+            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-[#102c18] focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
           >
             <option value="all">All Trip Styles</option>
             <option value="Adventure">Adventure &amp; High Pass</option>
@@ -103,7 +103,7 @@ export default function PackageFilters({
           <select
             value={filters.budget}
             onChange={(e) => onFilterChange('budget', e.target.value)}
-            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
+            className="w-full px-3.5 py-2.5 text-xs font-medium text-soil bg-beige/40 hover:bg-beige/60 border border-bark/15 rounded-xl focus:bg-[#102c18] focus:outline-none focus:ring-2 focus:ring-pine/20 focus:border-pine transition-all cursor-pointer shadow-sm"
           >
             <option value="all">All Budget Tiers</option>
             <option value="under30">Under ₹30,000</option>

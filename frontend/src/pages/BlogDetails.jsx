@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Calendar, Clock, ArrowLeft, ArrowRight, Compass } from 'lucide-react';
-import { blogPosts } from '../data/blogPosts';
-import { packages } from '../data/packages';
 import Button from '../components/common/Button';
+import { frontendApi } from '../api/client';
 
 function useInView(threshold = 0.12) {
   const ref = useRef(null);
@@ -21,10 +20,33 @@ function useInView(threshold = 0.12) {
 
 export default function BlogDetails() {
   const { slug } = useParams();
-  const post = blogPosts.find((p) => p.slug === slug);
+  const [post, setPost] = useState(null);
+  const [relatedPackage, setRelatedPackage] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const [heroRef, heroInView] = useInView(0.08);
   const [bodyRef, bodyInView] = useInView(0.08);
+
+  useEffect(() => {
+    setLoading(true);
+    frontendApi.getBlog(slug)
+      .then((res) => {
+        setPost(res);
+        if (res?.relatedPackageSlug) {
+          frontendApi.getPackage(res.relatedPackageSlug).then(setRelatedPackage).catch(() => {});
+        }
+      })
+      .catch(() => setPost(null))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center text-sm text-soil/60">
+        Loading article...
+      </div>
+    );
+  }
 
   if (!post) {
     return (
@@ -38,19 +60,14 @@ export default function BlogDetails() {
     );
   }
 
-  const relatedPackage = post.relatedPackageSlug
-    ? packages.find((p) => p.slug === post.relatedPackageSlug)
-    : null;
+  const authorName = post.author?.name || post.authorName || 'Editorial Team';
 
   return (
-    <div className="bg-cream pb-20">
+    <div className="bg-transparent pb-20">
 
       {/* Header Banner */}
-      <div className="bg-gradient-to-b from-beige to-cream py-14 px-4 sm:px-6 lg:px-8 mb-8 border-b border-bark/20">
-        <div
-          ref={heroRef}
-          className={`max-w-4xl mx-auto text-center transition-all duration-700 ease-out ${heroInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-        >
+      <div className="page-hero py-14 px-4 sm:px-6 lg:px-8 mb-8">
+        <div className="max-w-4xl mx-auto text-center animate-fade-up">
           <Link
             to="/blog"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-pine hover:text-fern mb-5 transition-colors"
@@ -66,61 +83,66 @@ export default function BlogDetails() {
             {post.title}
           </h1>
 
-          {/* Metadata */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-sm text-soil/60">
-            {post.author && (
-              <span className="font-medium text-soil">{post.author.name}</span>
+            <span className="font-medium text-soil">{authorName}</span>
+            {post.date && (
+              <>
+                <span>&bull;</span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-sage" />
+                  {post.date}
+                </span>
+              </>
             )}
-            <span>&bull;</span>
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-sage" />
-              {post.date}
-            </span>
-            <span>&bull;</span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-sage" />
-              {post.readTime}
-            </span>
+            {post.readTime && (
+              <>
+                <span>&bull;</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-sage" />
+                  {post.readTime}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* Featured Cover Image */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
-        <div className="rounded-2xl overflow-hidden border border-bark/20 shadow-nature">
-          <img
-            src={post.coverImage}
-            alt={post.title}
-            className="w-full aspect-[16/9] object-cover"
-          />
+      {post.coverImage && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+          <div className="rounded-2xl overflow-hidden border border-bark/20 shadow-nature">
+            <img
+              src={post.coverImage}
+              alt={post.title}
+              className="w-full aspect-[16/9] object-cover"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Article Body */}
-      <article
-        ref={bodyRef}
-        className={`max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-700 ease-out ${bodyInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-      >
+      <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 animate-fade-up">
         <div
-          className="bg-cream rounded-2xl p-6 sm:p-10 border border-bark/20 shadow-nature text-soil leading-relaxed space-y-4 text-sm sm:text-base
+          className="glass-card p-6 sm:p-10 text-soil leading-relaxed space-y-4 text-sm sm:text-base
             [&_.lead]:text-base [&_.lead]:sm:text-lg [&_.lead]:font-medium [&_.lead]:text-soil [&_.lead]:border-b [&_.lead]:border-bark/15 [&_.lead]:pb-4
             [&_h3]:font-serif [&_h3]:text-xl [&_h3]:sm:text-2xl [&_h3]:font-bold [&_h3]:text-soil [&_h3]:mt-6 [&_h3]:mb-2
             [&_blockquote]:border-l-4 [&_blockquote]:border-sage [&_blockquote]:pl-5 [&_blockquote]:italic [&_blockquote]:text-soil/70 [&_blockquote]:my-4 [&_blockquote]:bg-beige/50 [&_blockquote]:py-3 [&_blockquote]:rounded-r-xl
             [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_ul]:text-sm
             [&_strong]:text-soil [&_strong]:font-semibold
           "
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: post.content || post.body }}
         />
 
-        {/* Related Itinerary Callout */}
         {relatedPackage && (
           <div className="mt-8 p-5 bg-beige rounded-2xl border border-bark/20 shadow-nature flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <img
-                src={relatedPackage.coverImage}
-                alt={relatedPackage.name}
-                className="w-16 h-16 rounded-xl border border-bark/20 object-cover flex-shrink-0"
-              />
+              {relatedPackage.coverImage && (
+                <img
+                  src={relatedPackage.coverImage}
+                  alt={relatedPackage.name}
+                  className="w-16 h-16 rounded-xl border border-bark/20 object-cover flex-shrink-0"
+                />
+              )}
               <div>
                 <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium px-2 py-0.5 mb-1">
                   Experience this route
@@ -147,7 +169,6 @@ export default function BlogDetails() {
           </div>
         )}
 
-        {/* Footer Navigation */}
         <div className="mt-8 pt-5 border-t border-bark/15 flex items-center justify-between">
           <Link
             to="/blog"

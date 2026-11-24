@@ -19,7 +19,7 @@ export default function DestinationCard({ destination }) {
 
         {/* Top label */}
         <div className="absolute top-3 left-3">
-          <span className="text-[10px] font-medium px-2 py-0.5 bg-cream/90 text-pine rounded-full uppercase tracking-wide border border-sage/30">
+          <span className="text-[10px] font-semibold px-2.5 py-0.5 bg-[#05140b]/78 backdrop-blur-md text-sage rounded-full uppercase tracking-wider border border-white/20">
             Himalayan Region
           </span>
         </div>

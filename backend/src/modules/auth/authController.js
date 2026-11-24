@@ -23,7 +23,7 @@ export const authController = {
 
       const empId = generateId('EMP');
       const passwordHash = await bcrypt.hash(password, 10);
-      
+
       // Generate OTP for email verification
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpHash = await bcrypt.hash(otp, 6);
@@ -32,11 +32,11 @@ export const authController = {
       const newUser = {
         id: uuidv4(),
         empId,
-        fullName,
-        email: email.toLowerCase(),
-        phone,
+        fullName: fullName.trim(),
+        email: email.toLowerCase().trim(),
+        phone: phone.trim(),
         passwordHash,
-        status: 'PENDING_MASTER_APPROVAL', // Email verified or directly awaiting Master approval
+        status: 'PENDING_MASTER_APPROVAL',
         otpHash,
         otpExpiresAt,
         createdAt: new Date().toISOString(),
@@ -45,7 +45,7 @@ export const authController = {
 
       store.insert('users', newUser);
 
-      // Send OTP
+      // Dispatch OTP via email service
       await emailService.sendOtp(email, otp, 'Registration Verification');
 
       // Notify Master about new registration
@@ -63,8 +63,7 @@ export const authController = {
       return res.status(201).json({
         message: 'Registration successful! Your Employee ID has been generated. Your account is pending Master approval.',
         empId,
-        email,
-        demoOtp: otp // Available in response for immediate testing convenience
+        email: newUser.email
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });
@@ -74,13 +73,13 @@ export const authController = {
   // 2. Employee Login
   async login(req, res) {
     try {
-      const { identifier, password } = req.body; // identifier can be empId or email
+      const { identifier, password } = req.body;
       if (!identifier || !password) {
         return res.status(400).json({ error: 'Employee ID (or email) and password are required.' });
       }
 
-      const user = store.findOne('users', u => 
-        u.empId?.toLowerCase() === identifier.trim().toLowerCase() || 
+      const user = store.findOne('users', u =>
+        u.empId?.toLowerCase() === identifier.trim().toLowerCase() ||
         u.email?.toLowerCase() === identifier.trim().toLowerCase()
       );
 
@@ -93,7 +92,6 @@ export const authController = {
         return res.status(401).json({ error: 'Invalid Employee ID/email or password.' });
       }
 
-      // Check status
       if (user.status !== 'ACTIVE') {
         const messages = {
           PENDING_VERIFICATION: 'Your email verification is pending. Please verify your OTP.',
@@ -109,7 +107,6 @@ export const authController = {
         });
       }
 
-      // Gather department memberships and roles
       const memberships = store.find('userDepartmentRoles', m => m.userId === user.id);
       const roles = store.get('roles');
       const userDepartments = [...new Set(memberships.map(m => m.departmentCode))];
@@ -126,7 +123,6 @@ export const authController = {
         }
       }
 
-      // Generate JWT
       const token = jwt.sign(
         {
           id: user.id,
@@ -139,7 +135,6 @@ export const authController = {
         { expiresIn: config.jwtExpiresIn }
       );
 
-      // Update last login
       store.updateById('users', user.id, { lastLoginAt: new Date().toISOString() });
 
       logAudit({ user: { id: user.id, empId: user.empId, fullName: user.fullName, departments: userDepartments } }, 'USER_LOGIN', 'USER', user.empId);
@@ -209,8 +204,7 @@ export const authController = {
       logAudit({ user: { id: user.id, empId: user.empId, fullName: user.fullName, departments: ['SYSTEM'] } }, 'PASSWORD_RESET_REQUESTED', 'USER', user.empId);
 
       return res.json({
-        message: 'An OTP has been dispatched to your email address.',
-        demoOtp: otp
+        message: 'An OTP has been dispatched to your email address.'
       });
     } catch (err) {
       return res.status(500).json({ error: err.message });

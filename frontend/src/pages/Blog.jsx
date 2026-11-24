@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import BlogCard from '../components/blog/BlogCard';
-import { blogPosts } from '../data/blogPosts';
+import { frontendApi } from '../api/client';
 
 function useInView(threshold = 0.12) {
   const ref = useRef(null);
@@ -17,45 +17,58 @@ function useInView(threshold = 0.12) {
 }
 
 export default function Blog() {
-  const [heroRef, heroInView] = useInView(0.08);
-  const [gridRef, gridInView] = useInView(0.08);
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    frontendApi.getBlogs()
+      .then((res) => setBlogPosts(Array.isArray(res) ? res : []))
+      .catch(() => setBlogPosts([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div className="bg-cream pb-20">
+    <div className="bg-transparent pb-20 min-h-[70vh]">
 
       {/* Header Banner */}
-      <div className="bg-gradient-to-b from-beige to-cream py-14 px-4 sm:px-6 lg:px-8 mb-10 border-b border-bark/20">
-        <div
-          ref={heroRef}
-          className={`max-w-5xl mx-auto text-center transition-all duration-700 ease-out ${heroInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-        >
-          <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium tracking-widest uppercase px-4 py-1 mb-5">
+      <div className="page-hero py-14 px-4 sm:px-6 lg:px-8 mb-10">
+        <div className="max-w-5xl mx-auto text-center animate-fade-up">
+          <span className="section-label mb-5">
             Himalayan journal &amp; guides
           </span>
-          <h1 className="font-serif text-3xl sm:text-5xl font-bold text-soil">
+          <h1 className="font-sans text-3xl sm:text-5xl font-extrabold text-white">
             Stories, advice &amp; dispatches
           </h1>
-          <p className="mt-4 text-sm text-soil/70 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-4 text-sm sm:text-base text-soil/80 max-w-2xl mx-auto leading-relaxed">
             In-depth guides on high-altitude acclimatization, seasonal transitions in the valleys, and traveling gently through fragile mountain habitats.
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div
-          ref={gridRef}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
-        >
-          {blogPosts.map((post, index) => (
-            <div
-              key={post.id}
-              className={`transition-all duration-700 ease-out ${gridInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-              style={{ transitionDelay: `${index * 80}ms` }}
-            >
-              <BlogCard post={post} />
-            </div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            {[0, 1, 2].map((n) => (
+              <div key={n} className="h-96 rounded-2xl shimmer border border-white/10" />
+            ))}
+          </div>
+        ) : blogPosts.length === 0 ? (
+          <div className="glass-card p-10 text-center max-w-lg mx-auto">
+            <h3 className="font-sans text-xl font-bold text-white">No published stories yet</h3>
+            <p className="text-sm text-soil/80 mt-2">
+              New travel dispatches and mountain guides will appear here once published by our editorial team.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 animate-fade-up">
+            {blogPosts.map((post) => (
+              <div key={post.id}>
+                <BlogCard post={post} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

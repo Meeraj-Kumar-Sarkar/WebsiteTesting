@@ -1,38 +1,51 @@
 import React from 'react';
 
-export default function StatCard({ title, value, subtitle, icon: Icon, color = 'brand', badgeText }) {
-  const colorMap = {
-    brand: 'bg-brand-50 text-brand-600 border-brand-200',
-    blue: 'bg-blue-50 text-blue-600 border-blue-200',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-    amber: 'bg-amber-50 text-amber-600 border-amber-200',
-    purple: 'bg-purple-50 text-purple-600 border-purple-200',
-    rose: 'bg-rose-50 text-rose-600 border-rose-200',
-  };
+const COLOR_MAP = {
+  brand: { icon: 'bg-brand-50 text-brand-700 border-brand-100', glow: 'bg-brand-500' },
+  blue: { icon: 'bg-blue-50 text-blue-600 border-blue-100', glow: 'bg-blue-500' },
+  emerald: { icon: 'bg-emerald-50 text-emerald-600 border-emerald-100', glow: 'bg-emerald-500' },
+  amber: { icon: 'bg-amber-50 text-amber-600 border-amber-100', glow: 'bg-amber-500' },
+  purple: { icon: 'bg-purple-50 text-purple-600 border-purple-100', glow: 'bg-purple-500' },
+  rose: { icon: 'bg-rose-50 text-rose-600 border-rose-100', glow: 'bg-rose-500' },
+  indigo: { icon: 'bg-indigo-50 text-indigo-600 border-indigo-100', glow: 'bg-indigo-500' },
+  cyan: { icon: 'bg-cyan-50 text-cyan-600 border-cyan-100', glow: 'bg-cyan-500' },
+};
+
+export default function StatCard({ title, value, subtitle, icon: Icon, color = 'brand', badgeText, onClick, loading = false }) {
+  const c = COLOR_MAP[color] || COLOR_MAP.brand;
+  const Wrapper = onClick ? 'button' : 'div';
 
   return (
-    <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow transition">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</span>
+    <Wrapper
+      onClick={onClick}
+      className={`group relative overflow-hidden text-left w-full bg-white rounded-2xl p-5 border border-slate-200 shadow-soft transition duration-200 ${
+        onClick ? 'hover:-translate-y-0.5 hover:shadow-lift cursor-pointer' : 'hover:shadow-lift'
+      }`}
+    >
+      {/* soft accent glow */}
+      <span className={`pointer-events-none absolute -right-8 -top-8 w-24 h-24 rounded-full opacity-[0.08] blur-2xl ${c.glow}`} />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 leading-5">{title}</span>
         {Icon && (
-          <div className={`p-2 rounded-lg border ${colorMap[color] || colorMap.brand}`}>
-            <Icon className="w-5 h-5" />
+          <div className={`shrink-0 p-2 rounded-xl border ${c.icon} transition group-hover:scale-105`}>
+            <Icon className="w-[18px] h-[18px]" />
           </div>
         )}
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between">
-        <div className="text-2xl font-bold tracking-tight text-slate-900">{value}</div>
+      <div className="relative mt-2 flex items-baseline justify-between gap-2">
+        {loading ? (
+          <div className="skeleton h-8 w-24" />
+        ) : (
+          <div className="text-2xl font-bold tracking-tight text-slate-900 tabular-nums truncate">{value}</div>
+        )}
         {badgeText && (
-          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-            {badgeText}
-          </span>
+          <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{badgeText}</span>
         )}
       </div>
 
-      {subtitle && (
-        <p className="mt-1 text-xs text-slate-500 font-medium">{subtitle}</p>
-      )}
-    </div>
+      {subtitle && <p className="relative mt-1 text-xs text-slate-500 font-medium truncate">{subtitle}</p>}
+    </Wrapper>
   );
 }

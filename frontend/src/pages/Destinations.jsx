@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Mountain, ArrowRight } from 'lucide-react';
-import SectionHeading from '../components/common/SectionHeading';
-import { destinations } from '../data/destinations';
+import { Clock, Mountain, ArrowRight, Compass } from 'lucide-react';
+import Button from '../components/common/Button';
+import { frontendApi } from '../api/client';
 
 function useInView(threshold = 0.12) {
   const ref = useRef(null);
@@ -19,11 +19,21 @@ function useInView(threshold = 0.12) {
 }
 
 export default function Destinations() {
+  const [destinations, setDestinations] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [heroRef, heroInView] = useInView(0.08);
   const [gridRef, gridInView] = useInView(0.08);
 
+  useEffect(() => {
+    setLoading(true);
+    frontendApi.getDestinations()
+      .then((res) => setDestinations(Array.isArray(res) ? res : []))
+      .catch(() => setDestinations([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
-    <div className="bg-cream pb-20">
+    <div className="bg-cream pb-20 min-h-[70vh]">
 
       {/* Page Header */}
       <div className="bg-gradient-to-b from-beige to-cream py-14 px-4 sm:px-6 lg:px-8 mb-10 border-b border-bark/20">
@@ -45,88 +55,107 @@ export default function Destinations() {
 
       {/* Main Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div
-          ref={gridRef}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8"
-        >
-          {destinations.map((dest, index) => (
-            <div
-              key={dest.id}
-              className={`bg-cream rounded-2xl border border-bark/20 shadow-nature hover:shadow-nature-md transition-all duration-700 ease-out flex flex-col justify-between ${gridInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
-              style={{ transitionDelay: `${index * 80}ms` }}
-            >
-              <div className="relative aspect-[16/10] overflow-hidden rounded-t-2xl bg-beige">
-                <img
-                  src={dest.coverImage}
-                  alt={dest.name}
-                  className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-pine/60 via-transparent to-transparent" />
-                <div className="absolute bottom-3 left-4 right-4 text-cream">
-                  <span className="inline-block rounded-full bg-cream/20 backdrop-blur-sm border border-cream/30 text-xs font-medium px-3 py-0.5 mb-1">
-                    {dest.state}
-                  </span>
-                  <h2 className="font-serif text-2xl sm:text-3xl font-bold">
-                    {dest.name}
-                  </h2>
-                </div>
-              </div>
-
-              <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
-                <div>
-                  <p className="text-xs font-medium text-pine tracking-wide mb-2">
-                    {dest.tagline}
-                  </p>
-                  <p className="text-sm text-soil/75 leading-relaxed mb-4">
-                    {dest.description}
-                  </p>
-
-                  {/* Highlights List */}
-                  <div className="space-y-1.5 mb-4 pt-3 border-t border-bark/15">
-                    <span className="text-xs font-medium text-soil block mb-1">
-                      Key highlights:
+        {loading ? (
+          <div className="py-16 text-center text-sm text-soil/60">
+            Loading destinations...
+          </div>
+        ) : destinations.length === 0 ? (
+          <div className="bg-beige rounded-2xl p-10 text-center border border-bark/20 max-w-lg mx-auto">
+            <h3 className="font-serif text-xl font-bold text-soil">No destination guides published yet</h3>
+            <p className="text-sm text-soil/70 mt-2 mb-5">
+              You can still request a custom itinerary across Himachal Pradesh, Uttarakhand, Ladakh, or Kashmir.
+            </p>
+            <Button to="/customize-trip" variant="primary" size="sm" icon={Compass}>
+              Plan Custom Journey
+            </Button>
+          </div>
+        ) : (
+          <div
+            ref={gridRef}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8"
+          >
+            {destinations.map((dest, index) => (
+              <div
+                key={dest.id}
+                className={`bg-cream rounded-2xl border border-bark/20 shadow-nature hover:shadow-nature-md transition-all duration-700 ease-out flex flex-col justify-between ${gridInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+                style={{ transitionDelay: `${index * 80}ms` }}
+              >
+                <div className="relative aspect-[16/10] overflow-hidden rounded-t-2xl bg-beige">
+                  {dest.coverImage && (
+                    <img
+                      src={dest.coverImage}
+                      alt={dest.name}
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-pine/60 via-transparent to-transparent" />
+                  <div className="absolute bottom-3 left-4 right-4 text-cream">
+                    <span className="inline-block rounded-full bg-cream/20 backdrop-blur-sm border border-cream/30 text-xs font-medium px-3 py-0.5 mb-1">
+                      {dest.state}
                     </span>
-                    {dest.highlights.slice(0, 3).map((h, i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm text-soil/70">
-                        <span className="w-1.5 h-1.5 bg-sage rounded-full flex-shrink-0" />
-                        <span>{h}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 p-3 bg-beige/60 rounded-xl border border-bark/15 text-sm text-soil/75 mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-sage" />
-                      <span>{dest.idealDuration}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Mountain className="w-3.5 h-3.5 text-sage" />
-                      <span>{dest.altitude}</span>
-                    </div>
+                    <h2 className="font-serif text-2xl sm:text-3xl font-bold">
+                      {dest.name}
+                    </h2>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-bark/15">
-                  <Link
-                    to={`/destinations/${dest.slug}`}
-                    className="text-sm font-medium text-pine hover:text-fern flex items-center gap-1 transition-colors"
-                  >
-                    <span>Read region guide</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-pine tracking-wide mb-2">
+                      {dest.tagline}
+                    </p>
+                    <p className="text-sm text-soil/75 leading-relaxed mb-4">
+                      {dest.description}
+                    </p>
 
-                  <Link
-                    to={`/packages?destination=${dest.slug}`}
-                    className="px-4 py-2 rounded-2xl text-xs font-medium bg-pine text-cream hover:bg-fern transition-colors shadow-nature-sm"
-                  >
-                    Explore packages
-                  </Link>
+                    {dest.highlights && dest.highlights.length > 0 && (
+                      <div className="space-y-1.5 mb-4 pt-3 border-t border-bark/15">
+                        <span className="text-xs font-medium text-soil block mb-1">
+                          Key highlights:
+                        </span>
+                        {dest.highlights.slice(0, 3).map((h, i) => (
+                          <div key={i} className="flex items-center gap-2 text-sm text-soil/70">
+                            <span className="w-1.5 h-1.5 bg-sage rounded-full flex-shrink-0" />
+                            <span>{h}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 p-3 bg-beige/60 rounded-xl border border-bark/15 text-sm text-soil/75 mb-4">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-sage" />
+                        <span>{dest.idealDuration}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Mountain className="w-3.5 h-3.5 text-sage" />
+                        <span>{dest.altitude}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-bark/15">
+                    <Link
+                      to={`/destinations/${dest.slug}`}
+                      className="text-sm font-medium text-pine hover:text-fern flex items-center gap-1 transition-colors"
+                    >
+                      <span>Read region guide</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+
+                    <Link
+                      to={`/packages?destination=${dest.slug}`}
+                      className="px-4 py-2 rounded-2xl text-xs font-medium bg-pine text-cream hover:bg-fern transition-colors shadow-nature-sm"
+                    >
+                      Explore packages
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

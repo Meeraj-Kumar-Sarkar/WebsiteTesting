@@ -1,10 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Compass, Clock, Calendar, Mountain, Thermometer, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
-import { destinations } from '../data/destinations';
-import { packages } from '../data/packages';
+import { Clock, Calendar, Mountain, Thermometer, Sparkles, ArrowRight, ArrowLeft, Building2 } from 'lucide-react';
 import PackageCard from '../components/packages/PackageCard';
 import Button from '../components/common/Button';
+import { frontendApi } from '../api/client';
 
 function useInView(threshold = 0.12) {
   const ref = useRef(null);
@@ -22,11 +21,34 @@ function useInView(threshold = 0.12) {
 
 export default function DestinationDetails() {
   const { slug } = useParams();
-  const destination = destinations.find((d) => d.slug === slug);
+  const [destination, setDestination] = useState(null);
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [overviewRef, overviewInView] = useInView();
   const [spotsRef, spotsInView] = useInView();
   const [pkgsRef, pkgsInView] = useInView();
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      frontendApi.getDestination(slug).catch(() => null),
+      frontendApi.getPackages().catch(() => [])
+    ])
+      .then(([dest, pkgs]) => {
+        setDestination(dest);
+        setPackages(Array.isArray(pkgs) ? pkgs : []);
+      })
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center text-sm text-soil/60">
+        Loading regional guide...
+      </div>
+    );
+  }
 
   if (!destination) {
     return (
@@ -40,20 +62,22 @@ export default function DestinationDetails() {
     );
   }
 
-  const matchingPackages = packages.filter((p) => p.destinationId === destination.id);
+  const matchingPackages = packages.filter((p) => p.destinationId === destination.id || p.destinationId === destination.slug);
 
   return (
     <div className="bg-cream pb-20">
 
       {/* Hero Section */}
       <section className="relative min-h-[50vh] sm:min-h-[60vh] flex items-end justify-start overflow-hidden bg-pine border-b border-bark/20">
-        <div className="absolute inset-0 z-0 opacity-40">
-          <img
-            src={destination.heroImage || destination.coverImage}
-            alt={destination.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {(destination.heroImage || destination.coverImage) && (
+          <div className="absolute inset-0 z-0 opacity-40">
+            <img
+              src={destination.heroImage || destination.coverImage}
+              alt={destination.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-pine/80 via-pine/30 to-transparent z-0" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 text-cream w-full">
@@ -107,7 +131,6 @@ export default function DestinationDetails() {
           {/* Left Column */}
           <div className="lg:col-span-8 space-y-8">
 
-            {/* Overview Section */}
             <div
               ref={overviewRef}
               className={`bg-cream rounded-2xl p-6 sm:p-8 border border-bark/20 shadow-nature transition-all duration-700 ease-out ${overviewInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
@@ -123,31 +146,31 @@ export default function DestinationDetails() {
               </p>
             </div>
 
-            {/* Signature Spots */}
-            <div ref={spotsRef}>
-              <h3 className="font-serif text-2xl font-bold text-soil mb-5">
-                Iconic valleys &amp; places in {destination.name}
-              </h3>
-              <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-all duration-700 ease-out ${spotsInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                {destination.popularSpots.map((spot, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 bg-cream rounded-2xl border border-bark/20 shadow-nature-sm transition-all duration-700 ease-out"
-                    style={{ transitionDelay: `${idx * 80}ms` }}
-                  >
-                    <h4 className="font-serif font-bold text-sm text-soil mb-2 flex items-center gap-1.5">
-                      <span className="w-2 h-2 bg-sage rounded-full flex-shrink-0" />
-                      {spot.name}
-                    </h4>
-                    <p className="text-sm text-soil/70 leading-relaxed">
-                      {spot.desc}
-                    </p>
-                  </div>
-                ))}
+            {destination.popularSpots && destination.popularSpots.length > 0 && (
+              <div ref={spotsRef}>
+                <h3 className="font-serif text-2xl font-bold text-soil mb-5">
+                  Iconic valleys &amp; places in {destination.name}
+                </h3>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-all duration-700 ease-out ${spotsInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+                  {destination.popularSpots.map((spot, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 bg-cream rounded-2xl border border-bark/20 shadow-nature-sm transition-all duration-700 ease-out"
+                      style={{ transitionDelay: `${idx * 80}ms` }}
+                    >
+                      <h4 className="font-serif font-bold text-sm text-soil mb-2 flex items-center gap-1.5">
+                        <span className="w-2 h-2 bg-sage rounded-full flex-shrink-0" />
+                        {spot.name}
+                      </h4>
+                      <p className="text-sm text-soil/70 leading-relaxed">
+                        {spot.desc}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Available Curated Packages */}
             <div ref={pkgsRef}>
               <div className="flex items-center justify-between mb-5 pb-3 border-b border-bark/15">
                 <div>
@@ -187,23 +210,23 @@ export default function DestinationDetails() {
           {/* Right Column */}
           <div className="lg:col-span-4 space-y-6">
 
-            {/* Key Highlights Card */}
-            <div className="bg-cream rounded-2xl p-5 border border-bark/20 shadow-nature">
-              <h4 className="font-medium text-sm text-soil mb-4 pb-3 border-b border-bark/15 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-sage" />
-                <span>Trip highlights</span>
-              </h4>
-              <ul className="space-y-2 text-sm text-soil/75">
-                {destination.highlights.map((h, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 bg-sage rounded-full mt-1.5 flex-shrink-0" />
-                    <span>{h}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {destination.highlights && destination.highlights.length > 0 && (
+              <div className="bg-cream rounded-2xl p-5 border border-bark/20 shadow-nature">
+                <h4 className="font-medium text-sm text-soil mb-4 pb-3 border-b border-bark/15 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-sage" />
+                  <span>Trip highlights</span>
+                </h4>
+                <ul className="space-y-2 text-sm text-soil/75">
+                  {destination.highlights.map((h, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 bg-sage rounded-full mt-1.5 flex-shrink-0" />
+                      <span>{h}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            {/* Custom Travel Callout Box */}
             <div className="bg-pine rounded-2xl p-5 shadow-nature-lg">
               <span className="inline-block rounded-full bg-cream/20 text-cream/90 border border-cream/30 text-xs font-medium tracking-widest uppercase px-3 py-0.5 mb-3">
                 Tailor-made
@@ -222,6 +245,25 @@ export default function DestinationDetails() {
               >
                 Plan {destination.name} trip
               </Button>
+            </div>
+
+            <div className="bg-cream rounded-2xl p-5 border border-bark/20 shadow-nature">
+              <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium tracking-widest uppercase px-3 py-0.5 mb-3">
+                Accommodations
+              </span>
+              <h4 className="font-serif font-bold text-lg text-soil mb-1 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-pine" />
+                <span>Scouted Mountain Stays</span>
+              </h4>
+              <p className="text-xs text-soil/75 leading-relaxed mb-4">
+                Every stay is personally audited—from heritage hotels in colonial valleys to all-weather stargazing domes.
+              </p>
+              <Link
+                to="/stays"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-pine hover:text-fern transition-colors"
+              >
+                Browse scouted stays <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
 
           </div>

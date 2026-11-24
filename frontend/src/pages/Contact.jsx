@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Phone, Mail, MapPin, Clock, ArrowUpRight, Send, Check, ShieldCheck, MessageSquare } from 'lucide-react';
+import { Phone, Mail, MapPin, ArrowUpRight, Send, Check, ShieldCheck, MessageSquare, AlertCircle } from 'lucide-react';
 import Button from '../components/common/Button';
+import { frontendApi } from '../api/client';
 
 function useInView(threshold = 0.12) {
   const ref = useRef(null);
@@ -18,6 +19,11 @@ function useInView(threshold = 0.12) {
 
 export default function Contact() {
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [enquiryId, setEnquiryId] = useState('');
+  const [settings, setSettings] = useState(null);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -26,6 +32,10 @@ export default function Contact() {
     message: ''
   });
 
+  useEffect(() => {
+    frontendApi.getSettings().then(setSettings).catch(() => {});
+  }, []);
+
   const [heroRef, heroInView] = useInView(0.08);
   const [leftRef, leftInView] = useInView();
   const [rightRef, rightInView] = useInView();
@@ -33,23 +43,31 @@ export default function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.phone) return;
+    setSubmitting(true);
+    setSubmitError('');
     try {
-      await fetch('http://localhost:5000/api/enquiries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          source: 'WEBSITE',
-          notes: `Subject: ${formData.subject}\n\n${formData.message}`,
-        }),
+      const res = await frontendApi.submitEnquiry({
+        source: 'WEBSITE',
+        customerName: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        whatsappNumber: formData.phone,
+        selectedPackage: formData.subject,
+        message: formData.message,
       });
-    } catch {
-      // Backend may not be running in dev; proceed to success state regardless
+      setEnquiryId(res.enquiry?.enquiryId || '');
+      setFormSubmitted(true);
+    } catch (err) {
+      setSubmitError(err.message || 'Unable to submit your enquiry right now. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-    setFormSubmitted(true);
   };
+
+  const phone = settings?.supportPhone || '+91 98765 43210';
+  const cleanWaPhone = phone.replace(/\D/g, '');
+  const email = settings?.supportEmail || 'contact@mountainandmemories.com';
+  const address = settings?.registeredAddress || 'Old Manali Road, Manali, Himachal Pradesh';
 
   const contactItems = [
     {
@@ -57,7 +75,7 @@ export default function Contact() {
       iconBg: 'bg-sage/20',
       iconColor: 'text-pine',
       label: 'Phone inquiries',
-      main: <a href="tel:+919876543210" className="font-medium text-sm text-soil hover:text-pine transition-colors">+91 98765 43210 (Demo)</a>,
+      main: <a href={`tel:${phone}`} className="font-medium text-sm text-soil hover:text-pine transition-colors">{phone}</a>,
       sub: 'Mon to Sat, 9:00 AM – 7:30 PM IST',
     },
     {
@@ -67,12 +85,12 @@ export default function Contact() {
       label: 'WhatsApp travel desk',
       main: (
         <a
-          href="https://wa.me/919876543210?text=Hi%20Mountain%20and%20Memories,%20I%20have%20an%20enquiry"
+          href={`https://wa.me/${cleanWaPhone}?text=Hi%20Mountain%20and%20Memories,%20I%20have%20an%20enquiry`}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-sm text-soil hover:text-pine flex items-center gap-1 transition-colors"
         >
-          <span>+91 98765 43210</span>
+          <span>{phone}</span>
           <ArrowUpRight className="w-3.5 h-3.5 text-sage" />
         </a>
       ),
@@ -83,7 +101,7 @@ export default function Contact() {
       iconBg: 'bg-sage/20',
       iconColor: 'text-pine',
       label: 'Email correspondence',
-      main: <a href="mailto:concierge@mountainandmemories.demo" className="font-medium text-xs sm:text-sm text-soil hover:text-pine transition-colors block truncate">concierge@mountainandmemories.demo</a>,
+      main: <a href={`mailto:${email}`} className="font-medium text-xs sm:text-sm text-soil hover:text-pine transition-colors block truncate">{email}</a>,
       sub: 'Response within 12 operational hours',
     },
     {
@@ -91,8 +109,8 @@ export default function Contact() {
       iconBg: 'bg-beige',
       iconColor: 'text-pine',
       label: 'Base hubs',
-      main: <p className="font-medium text-sm text-soil">Old Manali, HP &bull; Dehradun, UK</p>,
-      sub: 'Logistical basecamp centers',
+      main: <p className="font-medium text-sm text-soil">{address}</p>,
+      sub: 'Logistical basecamp center',
     },
   ];
 
@@ -120,7 +138,7 @@ export default function Contact() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
 
-          {/* Left Column: Direct Contact Info & Base Locations */}
+          {/* Left Column */}
           <div
             ref={leftRef}
             className={`lg:col-span-5 space-y-6 transition-all duration-700 ease-out ${leftInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
@@ -137,7 +155,6 @@ export default function Contact() {
               </p>
             </div>
 
-            {/* Contact Cards */}
             <div className="space-y-3">
               {contactItems.map((item, index) => (
                 <div
@@ -172,17 +189,27 @@ export default function Contact() {
                   <div className="w-14 h-14 rounded-full bg-fern flex items-center justify-center mx-auto mb-4">
                     <Check className="w-7 h-7 text-cream" />
                   </div>
-                  <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-medium px-3 py-0.5 mb-3">
-                    Prototype demo
-                  </span>
+                  {enquiryId && (
+                    <span className="inline-block rounded-full bg-sage/20 text-pine border border-sage/30 text-xs font-mono font-bold px-3 py-0.5 mb-3">
+                      Reference ID: {enquiryId}
+                    </span>
+                  )}
                   <h3 className="font-serif text-2xl font-bold text-soil">
-                    Message logged successfully!
+                    Message received!
                   </h3>
                   <p className="text-sm text-soil/70 max-w-md mx-auto mt-2 leading-relaxed">
-                    Thank you for reaching out, <strong>{formData.name}</strong>. Your enquiry for <em>"{formData.subject}"</em> has been received in this demonstration prototype.
+                    Thank you for reaching out, <strong>{formData.name}</strong>. Your enquiry for <em>"{formData.subject}"</em> has been logged with our Sales &amp; Operations desk.
                   </p>
                   <div className="mt-6">
-                    <Button onClick={() => setFormSubmitted(false)} variant="secondary" size="md">
+                    <Button
+                      onClick={() => {
+                        setFormSubmitted(false);
+                        setEnquiryId('');
+                        setFormData({ name: '', email: '', phone: '', subject: 'General Journey Enquiry', message: '' });
+                      }}
+                      variant="secondary"
+                      size="md"
+                    >
                       Send another message
                     </Button>
                   </div>
@@ -197,6 +224,13 @@ export default function Contact() {
                       Fill out the form below and our itinerary specialist will respond promptly.
                     </p>
                   </div>
+
+                  {submitError && (
+                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{submitError}</span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -260,7 +294,7 @@ export default function Contact() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-soil/60 uppercase tracking-wider mb-1">
+                    <label className="block text-xs font-semibold text-soil/60 uppercase tracking-wider mb-1">
                       Your message or questions
                     </label>
                     <textarea
@@ -275,11 +309,11 @@ export default function Contact() {
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-xs text-soil/50 flex items-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-sage" />
-                      Prototype client message
+                      Direct to our travel specialists
                     </span>
 
-                    <Button type="submit" variant="primary" size="md" icon={Send} iconPosition="right">
-                      Send enquiry
+                    <Button type="submit" disabled={submitting} variant="primary" size="md" icon={Send} iconPosition="right">
+                      {submitting ? 'Sending...' : 'Send enquiry'}
                     </Button>
                   </div>
                 </form>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Check, AlertCircle, Info, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Check, AlertCircle, Info, Sparkles, ArrowRight } from 'lucide-react';
 
 export default function AccommodationSelector({
   options = [],
@@ -32,7 +33,7 @@ export default function AccommodationSelector({
           </p>
         </div>
 
-        <div className="text-left sm:text-right bg-white/60 sm:bg-transparent p-3 sm:p-0 rounded-xl sm:rounded-none">
+        <div className="text-left sm:text-right bg-cream/80 sm:bg-transparent p-3 sm:p-0 rounded-lg sm:rounded-none">
           <span className="text-xs text-soil/60 block font-medium">Calculated Rate</span>
           <div className="text-xl sm:text-2xl font-bold font-serif text-pine">
             {currentOption?.available ? formatPrice(currentOption.pricePerPerson) : 'Tier Unavailable'}
@@ -58,7 +59,7 @@ export default function AccommodationSelector({
                   ? 'border-bark/10 bg-beige/30 opacity-60 cursor-not-allowed'
                   : isSelected
                   ? 'border-pine bg-pine text-cream shadow-nature-md scale-[1.01]'
-                  : 'border-bark/15 bg-white/80 hover:bg-beige/40 text-soil hover:border-bark/30 hover:shadow-nature-sm cursor-pointer'
+                  : 'border-bark/25 bg-cream/85 hover:bg-pine/30 text-soil hover:border-sage/40 hover:shadow-nature-sm cursor-pointer'
               }`}
             >
               <div>
@@ -136,6 +137,16 @@ export default function AccommodationSelector({
                 </li>
               ))}
             </ul>
+
+            <div className="mt-3 pt-3 border-t border-bark/10 pl-8">
+              <Link
+                to={`/stays?tier=${selectedTier}`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-pine hover:text-fern transition-colors"
+              >
+                <span>View all verified properties in {currentOption.tier} tier</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="flex items-start gap-2.5 text-xs text-soil/90">

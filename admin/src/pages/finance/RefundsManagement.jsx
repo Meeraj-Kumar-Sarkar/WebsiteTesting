@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import Badge from '../../components/common/Badge';
 import Modal from '../../components/common/Modal';
+import PageHeader from '../../components/common/PageHeader';
+import EmptyState from '../../components/common/EmptyState';
+import { Spinner } from '../../components/common/Loaders';
+import { useToast, useConfirm } from '../../context/FeedbackContext';
+import { usePreferences } from '../../context/PreferencesContext';
 import {
   AlertCircle,
   Plus,
@@ -10,14 +15,18 @@ import {
   Calculator,
   DollarSign,
   ArrowRight,
-  Clock
+  Clock,
+  Search,
+  ShieldAlert,
+  Percent
 } from 'lucide-react';
 
 export default function RefundsManagement() {
   const [refunds, setRefunds] = useState([]);
   const [tripRequests, setTripRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [search, setSearch] = useState('');
 
   // Cancellation request modal
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -40,6 +49,10 @@ export default function RefundsManagement() {
 
   const [actionLoading, setActionLoading] = useState(false);
 
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { formatDate, formatDateTime } = usePreferences();
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -50,7 +63,7 @@ export default function RefundsManagement() {
       setRefunds(refRes || []);
       setTripRequests(reqRes || []);
     } catch (e) {
-      console.error(e);
+      toast.error('Failed to load refunds data: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -65,11 +78,16 @@ export default function RefundsManagement() {
     setActionLoading(true);
     try {
       await api.post('/refunds/request', cancelForm);
-      setFeedback('Cancellation request submitted. Awaiting Master authorization.');
+      toast.success('Cancellation request submitted. Awaiting Master authorization.');
       setShowCancelModal(false);
+      setCancelForm({
+        tripRequestId: '',
+        customerReason: '',
+        requestedByCustomerDate: ''
+      });
       await loadData();
     } catch (err) {
-      setFeedback(`Error: ${err.message}`);
+      toast.error(`Submission error: ${err.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -80,15 +98,15 @@ export default function RefundsManagement() {
     setActionLoading(true);
     try {
       await api.post(`/refunds/${calcRefund.id}/calculate`, {
-        daysBeforeTrip: daysBeforeTrip ? parseInt(daysBeforeTrip) : undefined,
+        daysBeforeTrip: daysBeforeTrip ? parseInt(daysBeforeTrip, 10) : undefined,
         manualPercentage: manualPercentage ? parseFloat(manualPercentage) : undefined,
         notes: calcNotes
       });
-      setFeedback(`Refund calculated successfully. Ready for payout execution.`);
+      toast.success('Refund calculated successfully. Ready for payout execution.');
       setCalcRefund(null);
       await loadData();
     } catch (err) {
-      setFeedback(`Error: ${err.message}`);
+      toast.error(`Calculation error: ${err.message}`);
     } finally {
       setActionLoading(false);
     }
@@ -96,22 +114,35 @@ export default function RefundsManagement() {
 
   const handleExecuteSubmit = async (e) => {
     e.preventDefault();
+    if (!transactionRef.trim()) return;
     setActionLoading(true);
     try {
       await api.post(`/refunds/${executeRefund.id}/execute`, {
-        transactionRef,
+        transactionRef: transactionRef.trim(),
         payoutMethod
       });
-      setFeedback(`Refund payout of ₹${executeRefund.calculatedRefundAmount?.toLocaleString()} recorded with UTR: ${transactionRef}`);
+      toast.success(`Refund payout of ₹${executeRefund.calculatedRefundAmount?.toLocaleString()} recorded.`);
       setExecuteRefund(null);
       setTransactionRef('');
       await loadData();
     } catch (err) {
-      setFeedback(`Error: ${err.message}`);
+      toast.error(`Payout execution error: ${err.message}`);
     } finally {
       setActionLoading(false);
     }
   };
+
+  const filtered = refunds.filter((ref) => {
+    const matchesStatus = filterStatus === 'ALL' || ref.status === filterStatus;
+    const q = search.toLowerCase();
+    const matchesSearch =
+      !q ||
+      ref.refundId?.toLowerCase().includes(q) ||
+      ref.customerName?.toLowerCase().includes(q) ||
+      ref.tripRequestId?.toLowerCase().includes(q) ||
+      ref.refundTransactionRef?.toLowerCase().includes(q);
+    return matchesStatus && matchesSearch;
+  });
 
   const getRefundActions = (refund) => {
     switch (refund.status) {
@@ -124,7 +155,7 @@ export default function RefundsManagement() {
               setManualPercentage('');
               setCalcNotes('');
             }}
-            className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1"
+            className="btn-primary py-1 px-3 text-xs"
           >
             <Calculator className="w-3.5 h-3.5" /> Calculate Refund
           </button>
@@ -136,7 +167,7 @@ export default function RefundsManagement() {
               setExecuteRefund(refund);
               setTransactionRef('');
             }}
-            className="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1"
+            className="btn-primary py-1 px-3 text-xs bg-emerald-600 hover:bg-emerald-700"
           >
             <DollarSign className="w-3.5 h-3.5" /> Execute Payout
           </button>
@@ -147,94 +178,122 @@ export default function RefundsManagement() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-rose-700 font-bold mb-1">
-            <AlertCircle className="w-4 h-4 text-rose-600" />
-            Cancellation & Refund Processing
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 font-serif">
-            Refunds & Cancellations
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Policy-driven refund schedule: 90% (7+ days), 50% (3-6 days), 15% (0-2 days). All payouts require Master authorization.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setShowCancelModal(true)}
-          className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" /> Request Cancellation
-        </button>
-      </div>
-
-      {feedback && (
-        <div className="p-3.5 rounded-xl bg-brand-50 border border-brand-200 text-brand-900 text-xs font-medium flex items-center justify-between">
-          <span>{feedback}</span>
-          <button onClick={() => setFeedback('')} className="font-bold text-brand-700 hover:text-brand-900">×</button>
-        </div>
-      )}
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        eyebrow="Cancellation & Refund Processing"
+        title="Refunds & Cancellations"
+        description="Policy-driven refund schedule: 90% (7+ days), 50% (3-6 days), 15% (0-2 days). All payouts require Master authorization."
+        icon={AlertCircle}
+        actions={
+          <button
+            onClick={() => setShowCancelModal(true)}
+            className="btn-primary text-xs bg-rose-600 hover:bg-rose-700 shadow-soft"
+          >
+            <Plus className="w-4 h-4" /> Request Cancellation
+          </button>
+        }
+      />
 
       {/* Policy Reference Panel */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="text-center p-3 bg-white rounded-lg border border-amber-200">
-          <div className="text-xs font-bold text-slate-500 uppercase">7+ Days Before Trip</div>
-          <div className="text-2xl font-black text-emerald-600 mt-1">90%</div>
-          <div className="text-[11px] text-slate-500">Refund of Amount Paid</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="card p-4 text-center border-emerald-200/80 bg-emerald-50/40">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">7+ Days Before Departure</div>
+          <div className="text-3xl font-black text-emerald-600 mt-1">90%</div>
+          <div className="text-xs text-slate-500 mt-0.5">Refund of Total Amount Paid</div>
         </div>
-        <div className="text-center p-3 bg-white rounded-lg border border-amber-200">
-          <div className="text-xs font-bold text-slate-500 uppercase">3-6 Days Before Trip</div>
-          <div className="text-2xl font-black text-amber-600 mt-1">50%</div>
-          <div className="text-[11px] text-slate-500">Provisional Refund</div>
+        <div className="card p-4 text-center border-amber-200/80 bg-amber-50/40">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">3-6 Days Before Departure</div>
+          <div className="text-3xl font-black text-amber-600 mt-1">50%</div>
+          <div className="text-xs text-slate-500 mt-0.5">Provisional Retention Schedule</div>
         </div>
-        <div className="text-center p-3 bg-white rounded-lg border border-amber-200">
-          <div className="text-xs font-bold text-slate-500 uppercase">0-2 Days / Day of Trip</div>
-          <div className="text-2xl font-black text-rose-600 mt-1">15%</div>
-          <div className="text-[11px] text-slate-500">Provisional Refund</div>
+        <div className="card p-4 text-center border-rose-200/80 bg-rose-50/40">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">0-2 Days / Day of Trip</div>
+          <div className="text-3xl font-black text-rose-600 mt-1">15%</div>
+          <div className="text-xs text-slate-500 mt-0.5">Provisional Late Cancellation</div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="card p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search refund ID, customer, trip request..."
+            className="input pl-9 text-xs"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          {[
+            { id: 'ALL', label: 'All Requests' },
+            { id: 'PENDING_MASTER_APPROVAL', label: 'Pending Master Approval' },
+            { id: 'PENDING_CALCULATION', label: 'Pending Calculation' },
+            { id: 'APPROVED_PENDING_EXECUTION', label: 'Pending Payout' },
+            { id: 'COMPLETED', label: 'Completed' },
+          ].map((st) => (
+            <button
+              key={st.id}
+              onClick={() => setFilterStatus(st.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                filterStatus === st.id
+                  ? 'bg-brand-600 text-white shadow-soft'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {st.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Refunds Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {refunds.length === 0 ? (
-          <div className="p-12 text-center text-xs text-slate-400">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-            No cancellation or refund requests recorded.
+      <div className="card overflow-hidden">
+        {loading ? (
+          <div className="p-12 flex flex-col items-center justify-center gap-3">
+            <Spinner className="w-7 h-7 text-brand-600" />
+            <p className="text-xs text-slate-500">Retrieving refund ledger and cancellation tickets...</p>
           </div>
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="No cancellation or refund requests found"
+            description={search ? 'No refunds matched your search criteria.' : 'All customer accounts are in good standing.'}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Refund ID</th>
-                  <th className="py-3 px-4">Customer & Trip</th>
+                  <th className="py-3 px-4">Customer &amp; Trip</th>
                   <th className="py-3 px-4">Amount Paid</th>
-                  <th className="py-3 px-4">Refund Calculated</th>
+                  <th className="py-3 px-4">Refund Amount</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Payout Ref</th>
-                  <th className="py-3 px-4 text-right">Finance Actions</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {refunds.map((ref) => (
-                  <tr key={ref.id} className="hover:bg-slate-50/80 transition">
+                {filtered.map((ref) => (
+                  <tr key={ref.id} className="hover:bg-slate-50/70 transition">
                     <td className="py-3 px-4 font-mono font-bold text-rose-700">
                       {ref.refundId}
                     </td>
                     <td className="py-3 px-4">
                       <div className="font-bold text-slate-900">{ref.customerName}</div>
                       <div className="text-[11px] text-slate-500 font-mono">{ref.tripRequestId} • {ref.travelDates}</div>
-                      <div className="text-[11px] text-slate-500 italic mt-0.5">"{ref.customerReason}"</div>
+                      <div className="text-[11px] text-slate-500 italic mt-0.5 max-w-sm truncate">"{ref.customerReason}"</div>
                     </td>
-                    <td className="py-3 px-4 font-bold text-slate-900">
+                    <td className="py-3 px-4 font-bold text-slate-900 tabular-nums">
                       ₹{ref.amountPaid?.toLocaleString()}
                     </td>
                     <td className="py-3 px-4">
                       {ref.calculatedRefundAmount > 0 ? (
                         <div>
-                          <div className="font-bold text-emerald-700">₹{ref.calculatedRefundAmount?.toLocaleString()}</div>
+                          <div className="font-bold text-emerald-700 tabular-nums">₹{ref.calculatedRefundAmount?.toLocaleString()}</div>
                           <div className="text-[11px] text-slate-500">{ref.calculatedPercentage}% of paid</div>
                         </div>
                       ) : (
@@ -258,69 +317,77 @@ export default function RefundsManagement() {
         )}
       </div>
 
-      {/* Request Cancellation Modal */}
+      {/* Cancellation Request Modal */}
       {showCancelModal && (
-        <Modal isOpen={true} onClose={() => setShowCancelModal(false)} title="Lodge Customer Cancellation Request">
-          <form onSubmit={handleCancelSubmit} className="space-y-4">
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 space-y-1">
-              <strong>Cancellation Workflow:</strong>
-              <p>Sales logs the customer's request → Master authorizes cancellation → Finance calculates policy refund → Finance executes bank transfer → Confirmed payout.</p>
-            </div>
-
+        <Modal
+          isOpen={true}
+          onClose={() => setShowCancelModal(false)}
+          title="Log Customer Trip Cancellation Request"
+          description="Initiates formal cancellation ticket. Moves to Master for executive authorization."
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="cancel-request-form"
+                disabled={actionLoading}
+                className="btn-primary text-xs bg-rose-600 hover:bg-rose-700"
+              >
+                {actionLoading ? 'Submitting...' : 'Submit Cancellation'}
+              </button>
+            </>
+          }
+        >
+          <form id="cancel-request-form" onSubmit={handleCancelSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                Trip Request to Cancel
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Select Trip Request <span className="text-rose-500">*</span>
               </label>
               <select
                 required
                 value={cancelForm.tripRequestId}
                 onChange={(e) => setCancelForm({ ...cancelForm, tripRequestId: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-xs bg-white"
+                className="input text-xs"
               >
                 <option value="">-- Select Trip Request --</option>
-                {tripRequests
-                  .filter(r => !['CANCELLED', 'DRAFT', 'REJECTED'].includes(r.status))
-                  .map(r => (
-                    <option key={r.tripRequestId} value={r.tripRequestId}>
-                      {r.tripRequestId} — {r.customerName} ({r.travelDates})
-                    </option>
-                  ))}
+                {tripRequests.map((r) => (
+                  <option key={r.tripRequestId} value={r.tripRequestId}>
+                    {r.tripRequestId} — {r.customerName} ({r.travelDates})
+                  </option>
+                ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                Customer's Stated Reason for Cancellation
-              </label>
-              <textarea
-                rows={2}
-                required
-                value={cancelForm.customerReason}
-                onChange={(e) => setCancelForm({ ...cancelForm, customerReason: e.target.value })}
-                placeholder="e.g. Medical emergency, family obligation, dates changed..."
-                className="w-full px-3 py-2 border rounded-lg text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                Customer Requested Cancellation On
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Customer Request Date
               </label>
               <input
                 type="date"
                 value={cancelForm.requestedByCustomerDate}
                 onChange={(e) => setCancelForm({ ...cancelForm, requestedByCustomerDate: e.target.value })}
-                className="w-full px-3 py-2 border rounded-lg text-xs"
+                className="input text-xs"
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t">
-              <button type="button" onClick={() => setShowCancelModal(false)} className="px-4 py-2 border rounded-lg text-xs">
-                Cancel
-              </button>
-              <button type="submit" disabled={actionLoading} className="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-bold shadow-sm disabled:opacity-50">
-                {actionLoading ? 'Submitting...' : 'Submit Cancellation Request'}
-              </button>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Reason Given by Customer <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={cancelForm.customerReason}
+                onChange={(e) => setCancelForm({ ...cancelForm, customerReason: e.target.value })}
+                placeholder="e.g. Medical emergency in family / flight rescheduling..."
+                className="input resize-none text-xs"
+              />
             </div>
           </form>
         </Modal>
@@ -328,70 +395,74 @@ export default function RefundsManagement() {
 
       {/* Calculate Refund Modal */}
       {calcRefund && (
-        <Modal isOpen={true} onClose={() => setCalcRefund(null)} title={`Calculate Refund: ${calcRefund.refundId}`}>
-          <form onSubmit={handleCalculateSubmit} className="space-y-4">
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-              <div><strong>Customer:</strong> {calcRefund.customerName}</div>
-              <div><strong>Amount Paid:</strong> ₹{calcRefund.amountPaid?.toLocaleString()}</div>
-              <div><strong>Travel Dates:</strong> {calcRefund.travelDates}</div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                Days Before Trip (for auto policy lookup)
-              </label>
-              <input
-                type="number"
-                value={daysBeforeTrip}
-                onChange={(e) => {
-                  setDaysBeforeTrip(e.target.value);
-                  setManualPercentage('');
-                }}
-                placeholder="e.g. 8 (will apply 90% policy)"
-                className="w-full px-3 py-2 border rounded-lg text-xs"
-              />
-            </div>
-
-            <div className="text-xs text-slate-500 text-center">— or override with manual percentage —</div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                Manual Override Percentage (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={manualPercentage}
-                onChange={(e) => {
-                  setManualPercentage(e.target.value);
-                  setDaysBeforeTrip('');
-                }}
-                placeholder="e.g. 75"
-                className="w-full px-3 py-2 border rounded-lg text-xs"
-              />
-            </div>
-
-            {(daysBeforeTrip || manualPercentage) && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs">
-                <strong>Preview:</strong> ₹{(
-                  calcRefund.amountPaid * (
-                    (parseFloat(manualPercentage) || (parseInt(daysBeforeTrip) >= 7 ? 90 : parseInt(daysBeforeTrip) >= 3 ? 50 : 15)) / 100
-                  )
-                ).toLocaleString()} refund ({manualPercentage || (parseInt(daysBeforeTrip) >= 7 ? 90 : parseInt(daysBeforeTrip) >= 3 ? 50 : 15)}%)
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Notes</label>
-              <textarea rows={2} value={calcNotes} onChange={(e) => setCalcNotes(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-xs" />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t">
-              <button type="button" onClick={() => setCalcRefund(null)} className="px-4 py-2 border rounded-lg text-xs">Cancel</button>
-              <button type="submit" disabled={actionLoading || (!daysBeforeTrip && !manualPercentage)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm disabled:opacity-50">
-                {actionLoading ? 'Calculating...' : 'Set Refund Amount'}
+        <Modal
+          isOpen={true}
+          onClose={() => setCalcRefund(null)}
+          title={`Calculate Policy Refund: ${calcRefund.refundId}`}
+          description={`Customer: ${calcRefund.customerName} • Amount Paid: ₹${calcRefund.amountPaid?.toLocaleString()}`}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setCalcRefund(null)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
               </button>
+              <button
+                type="submit"
+                form="calc-refund-form"
+                disabled={actionLoading}
+                className="btn-primary text-xs"
+              >
+                {actionLoading ? 'Calculating...' : 'Approve Calculated Refund'}
+              </button>
+            </>
+          }
+        >
+          <form id="calc-refund-form" onSubmit={handleCalculateSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Days Notice Before Departure
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 10 (auto applies 90%)"
+                  value={daysBeforeTrip}
+                  onChange={(e) => setDaysBeforeTrip(e.target.value)}
+                  className="input text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Or Override Percentage (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  placeholder="e.g. 75"
+                  value={manualPercentage}
+                  onChange={(e) => setManualPercentage(e.target.value)}
+                  className="input text-xs"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Internal Calculation Notes
+              </label>
+              <textarea
+                rows={2}
+                value={calcNotes}
+                onChange={(e) => setCalcNotes(e.target.value)}
+                placeholder="Deducted unrecoverable boutique stay non-refundable advance..."
+                className="input resize-none text-xs"
+              />
             </div>
           </form>
         </Modal>
@@ -399,41 +470,59 @@ export default function RefundsManagement() {
 
       {/* Execute Payout Modal */}
       {executeRefund && (
-        <Modal isOpen={true} onClose={() => setExecuteRefund(null)} title={`Record Refund Payout: ${executeRefund.refundId}`}>
-          <form onSubmit={handleExecuteSubmit} className="space-y-4">
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs space-y-1">
-              <div><strong>Customer:</strong> {executeRefund.customerName}</div>
-              <div><strong>Refund Amount:</strong> <span className="font-black text-emerald-700">₹{executeRefund.calculatedRefundAmount?.toLocaleString()}</span> ({executeRefund.calculatedPercentage}%)</div>
-            </div>
-
+        <Modal
+          isOpen={true}
+          onClose={() => setExecuteRefund(null)}
+          title={`Execute Payout: ${executeRefund.refundId}`}
+          description={`Customer: ${executeRefund.customerName} • Payout: ₹${executeRefund.calculatedRefundAmount?.toLocaleString()}`}
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setExecuteRefund(null)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="execute-refund-form"
+                disabled={actionLoading || !transactionRef.trim()}
+                className="btn-primary text-xs bg-emerald-600 hover:bg-emerald-700"
+              >
+                {actionLoading ? 'Recording...' : 'Confirm Payout Executed'}
+              </button>
+            </>
+          }
+        >
+          <form id="execute-refund-form" onSubmit={handleExecuteSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">Payout Method</label>
-              <select value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-xs bg-white">
-                <option value="BANK_TRANSFER">Bank Transfer / NEFT / IMPS</option>
-                <option value="UPI">UPI Transfer</option>
-                <option value="CHEQUE">Account Payee Cheque</option>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Payout Method
+              </label>
+              <select
+                value={payoutMethod}
+                onChange={(e) => setPayoutMethod(e.target.value)}
+                className="input text-xs"
+              >
+                <option value="BANK_TRANSFER">Direct Bank Transfer / NEFT / IMPS</option>
+                <option value="UPI">UPI VPA Transfer</option>
+                <option value="REVERSAL">Gateway Original Source Reversal</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase text-slate-700 mb-1">
-                Bank Transfer / UTR Reference (Mandatory)
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Bank Transfer UTR / Transaction Reference <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
                 value={transactionRef}
                 onChange={(e) => setTransactionRef(e.target.value)}
-                placeholder="e.g. NEFT/HDFC/20261101/002891"
-                className="w-full px-3 py-2 border rounded-lg text-xs font-mono"
+                placeholder="e.g. CMS58921008432"
+                className="input text-xs font-mono"
               />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2 border-t">
-              <button type="button" onClick={() => setExecuteRefund(null)} className="px-4 py-2 border rounded-lg text-xs">Cancel</button>
-              <button type="submit" disabled={actionLoading || !transactionRef.trim()} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm disabled:opacity-50">
-                {actionLoading ? 'Recording...' : 'Confirm Payout Executed'}
-              </button>
             </div>
           </form>
         </Modal>

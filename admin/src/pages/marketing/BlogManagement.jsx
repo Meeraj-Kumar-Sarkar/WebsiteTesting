@@ -3,6 +3,21 @@ import { api } from '../../api/client.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import Modal from '../../components/common/Modal.jsx';
+import PageHeader from '../../components/common/PageHeader.jsx';
+import EmptyState from '../../components/common/EmptyState.jsx';
+import { Spinner } from '../../components/common/Loaders.jsx';
+import { useToast, useConfirm } from '../../context/FeedbackContext.jsx';
+import { usePreferences } from '../../context/PreferencesContext.jsx';
+import {
+  BookOpen,
+  Plus,
+  EyeOff,
+  Edit2,
+  Search,
+  Globe,
+  Trash2,
+  Upload
+} from 'lucide-react';
 
 const STATUS_FILTERS = ['ALL', 'DRAFT', 'PUBLISHED', 'HIDDEN'];
 
@@ -13,6 +28,7 @@ const EMPTY_BLOG = {
   coverImage: '',
   category: 'TRAVEL_GUIDE',
   tags: '',
+  status: 'PUBLISHED'
 };
 
 const CATEGORIES = [
@@ -27,6 +43,9 @@ const CATEGORIES = [
 export default function BlogManagement() {
   const { user } = useAuth();
   const isMaster = user?.departments?.includes('MASTER');
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { formatDate } = usePreferences();
 
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,9 +54,10 @@ export default function BlogManagement() {
 
   // Create / Edit modal
   const [showForm, setShowForm] = useState(false);
-  const [editingBlog, setEditingBlog] = useState(null); // null = create
+  const [editingBlog, setEditingBlog] = useState(null);
   const [form, setForm] = useState(EMPTY_BLOG);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
 
   // Hide modal (Master only)
   const [showHideModal, setShowHideModal] = useState(false);
@@ -48,12 +68,35 @@ export default function BlogManagement() {
   const loadBlogs = useCallback(() => {
     setLoading(true);
     api.get('/blogs?includeAll=true')
-      .then((res) => setBlogs(res.data || []))
-      .catch(console.error)
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (res.data || []);
+        setBlogs(list);
+      })
+      .catch((err) => toast.error('Failed to load blog posts: ' + err.message))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { loadBlogs(); }, [loadBlogs]);
+  useEffect(() => {
+    loadBlogs();
+  }, [loadBlogs]);
+
+  const handleCoverUpload = async (file) => {
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/media/upload-file', fd);
+      if (res.url) {
+        setForm((prev) => ({ ...prev, coverImage: res.url }));
+        toast.success('Cover image uploaded.');
+      }
+    } catch (err) {
+      toast.error('Image upload failed: ' + err.message);
+    } finally {
+      setUploadingCover(false);
+    }
+  };
 
   const filtered = blogs.filter((b) => {
     const matchStatus = filter === 'ALL' || b.status === filter;
@@ -79,6 +122,7 @@ export default function BlogManagement() {
       coverImage: blog.coverImage || '',
       category: blog.category || 'TRAVEL_GUIDE',
       tags: Array.isArray(blog.tags) ? blog.tags.join(', ') : (blog.tags || ''),
+      status: blog.status || 'PUBLISHED'
     });
     setShowForm(true);
   };
@@ -93,25 +137,44 @@ export default function BlogManagement() {
     try {
       if (editingBlog) {
         await api.patch(`/blogs/${editingBlog.id}`, payload);
+        toast.success('Blog article updated successfully.');
       } else {
         await api.post('/blogs', payload);
+        toast.success(payload.status === 'PUBLISHED' ? 'Article published to website.' : 'Blog draft saved.');
       }
       setShowForm(false);
       loadBlogs();
     } catch (err) {
-      alert(err.message || 'Failed to save blog');
+      toast.error(err.message || 'Failed to save blog');
     } finally {
       setSaving(false);
     }
   };
 
   const handlePublish = async (blog) => {
-    if (!window.confirm(`Publish "${blog.title}"?`)) return;
     try {
       await api.post(`/blogs/${blog.id}/publish`);
+      toast.success('Article published to public journal.');
       loadBlogs();
     } catch (err) {
-      alert(err.message || 'Failed to publish');
+      toast.error(err.message || 'Failed to publish');
+    }
+  };
+
+  const handleDelete = async (blog) => {
+    const ok = await confirm({
+      title: `Delete "${blog.title}"?`,
+      message: 'This will permanently delete this article.',
+      confirmText: 'Delete Article',
+      tone: 'danger'
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/blogs/${blog.id}`);
+      toast.success('Article deleted.');
+      loadBlogs();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete');
     }
   };
 
@@ -125,315 +188,341 @@ export default function BlogManagement() {
     e.preventDefault();
     setHiding(true);
     try {
-      await api.patch(`/blogs/${hidingBlog.id}/hide`, { reason: hideReason });
+      await api.post(`/blogs/${hidingBlog.id}/hide`, { reason: hideReason });
+      toast.success('Article unlisted and hidden from public portal.');
       setShowHideModal(false);
       loadBlogs();
     } catch (err) {
-      alert(err.message || 'Failed to hide blog');
+      toast.error(err.message || 'Failed to hide blog');
     } finally {
       setHiding(false);
     }
   };
 
-  const statusDot = {
-    DRAFT: 'bg-yellow-400',
-    PUBLISHED: 'bg-green-400',
-    HIDDEN: 'bg-gray-400',
-  };
-
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Blog Management</h1>
-          <p className="text-gray-500 mt-1">Create and publish travel stories & guides</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
-        >
-          + New Post
-        </button>
-      </div>
+    <div className="space-y-6 animate-fade-in">
+      <PageHeader
+        eyebrow="Editorial & Content Strategy"
+        title="Journal & Blog Management"
+        description="Draft, publish, and curate travel stories, high-pass guides, and cultural spotlights for the public website."
+        icon={BookOpen}
+        actions={
+          <button
+            onClick={openCreate}
+            className="btn-primary text-xs"
+          >
+            <Plus className="w-4 h-4" /> New Article
+          </button>
+        }
+      />
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden">
-          {STATUS_FILTERS.map((s) => (
+      {/* Filter and Search Bar */}
+      <div className="card p-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search articles by title, category, keywords..."
+            className="input pl-9 text-xs"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+          {STATUS_FILTERS.map((st) => (
             <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                filter === s
-                  ? 'bg-brand-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-50'
+              key={st}
+              onClick={() => setFilter(st)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                filter === st
+                  ? 'bg-brand-600 text-white shadow-soft'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {s === 'ALL' ? 'All Posts' : s.charAt(0) + s.slice(1).toLowerCase()}
+              {st}
             </button>
           ))}
         </div>
-        <input
-          type="text"
-          placeholder="Search by title or category…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 min-w-[220px]"
-        />
-        <span className="text-sm text-gray-400 ml-auto">{filtered.length} posts</span>
       </div>
 
-      {/* Blog Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Blogs Table */}
+      <div className="card overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-8 h-8 border-4 border-brand-600 border-t-transparent rounded-full animate-spin" />
+          <div className="p-12 flex flex-col items-center justify-center gap-3">
+            <Spinner className="w-7 h-7 text-brand-600" />
+            <p className="text-xs text-slate-500">Loading blog publications...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <div className="text-4xl mb-2">📝</div>
-            <p>No blog posts found</p>
-            <button onClick={openCreate} className="mt-3 text-brand-600 hover:underline text-sm">
-              Create your first post
-            </button>
-          </div>
+          <EmptyState
+            icon={BookOpen}
+            title="No blog stories found"
+            description={search ? 'No articles matched your search query.' : 'Draft a new travel story or high-pass guide.'}
+            action={
+              <button onClick={openCreate} className="btn-primary text-xs">
+                <Plus className="w-4 h-4" /> Create Article
+              </button>
+            }
+          />
         ) : (
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
-              <tr>
-                {['Status', 'Title', 'Category', 'Tags', 'Author', 'Published', 'Actions'].map((h) => (
-                  <th
-                    key={h}
-                    className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
-              {filtered.map((blog) => (
-                <tr key={blog.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full flex-shrink-0 ${statusDot[blog.status] || 'bg-gray-300'}`}
-                      />
-                      <span className="text-xs text-gray-600">{blog.status}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="max-w-xs">
-                      <p className="text-sm font-medium text-gray-900 truncate">{blog.title}</p>
-                      <p className="text-xs text-gray-400 truncate">{blog.excerpt}</p>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">
-                    {blog.category?.replace(/_/g, ' ')}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {(blog.tags || []).slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      {(blog.tags || []).length > 3 && (
-                        <span className="text-xs text-gray-400">+{blog.tags.length - 3}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{blog.author}</td>
-                  <td className="px-5 py-3 text-sm text-gray-500">
-                    {blog.publishedAt
-                      ? new Date(blog.publishedAt).toLocaleDateString('en-IN')
-                      : '—'}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => openEdit(blog)}
-                        className="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 text-gray-600"
-                      >
-                        Edit
-                      </button>
-                      {blog.status === 'DRAFT' && (
-                        <button
-                          onClick={() => handlePublish(blog)}
-                          className="text-xs px-2 py-1 bg-green-50 border border-green-200 rounded hover:bg-green-100 text-green-700"
-                        >
-                          Publish
-                        </button>
-                      )}
-                      {isMaster && blog.status === 'PUBLISHED' && (
-                        <button
-                          onClick={() => openHide(blog)}
-                          className="text-xs px-2 py-1 bg-red-50 border border-red-200 rounded hover:bg-red-100 text-red-700"
-                        >
-                          Hide
-                        </button>
-                      )}
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-700">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-4">Article</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Author</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Date</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((b) => (
+                  <tr key={b.id} className="hover:bg-slate-50/70 transition">
+                    <td className="py-3 px-4 max-w-sm">
+                      <div className="font-bold text-slate-900 truncate">{b.title}</div>
+                      <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{b.excerpt}</div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold">
+                        {b.category}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-600">
+                      {b.authorName || b.authorEmpId || 'Editorial'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <Badge status={b.status} />
+                    </td>
+                    <td className="py-3 px-4 font-mono text-slate-500 text-[11px] whitespace-nowrap">
+                      {b.publishedAt ? formatDate(b.publishedAt) : formatDate(b.createdAt)}
+                    </td>
+                    <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                      <button
+                        onClick={() => openEdit(b)}
+                        className="btn-secondary py-1 px-2.5 text-xs"
+                      >
+                        <Edit2 className="w-3 h-3" /> Edit
+                      </button>
+
+                      {b.status !== 'PUBLISHED' && (
+                        <button
+                          onClick={() => handlePublish(b)}
+                          className="btn-primary py-1 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <Globe className="w-3 h-3" /> Publish
+                        </button>
+                      )}
+
+                      {isMaster && b.status === 'PUBLISHED' && (
+                        <button
+                          onClick={() => openHide(b)}
+                          className="btn-secondary py-1 px-2.5 text-xs text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+                        >
+                          <EyeOff className="w-3 h-3" /> Hide
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleDelete(b)}
+                        className="btn-secondary py-1 px-2 text-xs text-rose-600 hover:bg-rose-50"
+                        title="Delete article"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* ── Create / Edit Blog Modal ── */}
-      <Modal
-        isOpen={showForm}
-        onClose={() => setShowForm(false)}
-        title={editingBlog ? `Edit: ${editingBlog.title}` : 'New Blog Post'}
-      >
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Title <span className="text-red-500">*</span>
+      {/* Create / Edit Modal */}
+      {showForm && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowForm(false)}
+          title={editingBlog ? `Edit Article: ${editingBlog.title}` : 'Draft New Travel Article'}
+          maxWidth="max-w-3xl"
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="blog-form"
+                disabled={saving}
+                className="btn-primary text-xs"
+              >
+                {saving ? 'Saving...' : editingBlog ? 'Update Article' : 'Save Article'}
+              </button>
+            </>
+          }
+        >
+          <form id="blog-form" onSubmit={handleSave} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Article Title <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
                 value={form.title}
-                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder="e.g. 7 Hidden Gems of Spiti Valley"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="e.g. Crossing Kunzum La: What Nobody Tells You About Autumn Snow"
+                className="input text-xs"
               />
             </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Excerpt</label>
-              <input
-                type="text"
-                value={form.excerpt}
-                onChange={(e) => setForm((p) => ({ ...p, excerpt: e.target.value }))}
-                placeholder="Short description shown in blog listing"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className="input text-xs"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Publication Status</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  className="input text-xs"
+                >
+                  <option value="PUBLISHED">PUBLISHED (Live on Website)</option>
+                  <option value="DRAFT">DRAFT (Internal Only)</option>
+                </select>
+              </div>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Cover Image (URL or Upload)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.coverImage}
+                  onChange={(e) => setForm({ ...form, coverImage: e.target.value })}
+                  placeholder="https://images.unsplash.com/... or upload file"
+                  className="input text-xs font-mono flex-1"
+                />
+                <label className="btn-secondary text-xs cursor-pointer shrink-0 flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5" />
+                  {uploadingCover ? 'Uploading...' : 'Upload'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleCoverUpload(e.target.files?.[0])}
+                  />
+                </label>
+              </div>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags <span className="text-xs text-gray-400">(comma-separated)</span>
-              </label>
-              <input
-                type="text"
-                value={form.tags}
-                onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
-                placeholder="spiti, adventure, photography"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image URL</label>
-              <input
-                type="url"
-                value={form.coverImage}
-                onChange={(e) => setForm((p) => ({ ...p, coverImage: e.target.value }))}
-                placeholder="https://example.com/cover.jpg"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Body (Markdown) <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Short Excerpt / Teaser <span className="text-rose-500">*</span>
               </label>
               <textarea
                 required
-                rows={10}
-                value={form.body}
-                onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
-                placeholder={`# My Spiti Adventure\n\nWrite your travel story here in Markdown...`}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
+                rows={2}
+                value={form.excerpt}
+                onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
+                placeholder="A compelling 2-sentence summary shown on blog cards..."
+                className="input resize-none text-xs"
               />
-              <p className="text-xs text-gray-400 mt-1">
-                Markdown is supported — headings, bold, lists, links, images
-              </p>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm hover:bg-brand-700 disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : editingBlog ? 'Save Changes' : 'Create Draft'}
-            </button>
-          </div>
-        </form>
-      </Modal>
 
-      {/* ── Hide Blog Modal (Master only) ── */}
-      <Modal
-        isOpen={showHideModal}
-        onClose={() => setShowHideModal(false)}
-        title="Hide Blog Post"
-      >
-        <form onSubmit={handleHide} className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Hide <strong>"{hidingBlog?.title}"</strong> from the public. It will be removed from
-            the website but remain accessible internally.
-          </p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Reason <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={hideReason}
-              onChange={(e) => setHideReason(e.target.value)}
-              placeholder="e.g. Contains outdated pricing information"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-          </div>
-          <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
-            ⚠️ Only Master administrators can hide blog posts.
-          </p>
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowHideModal(false)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={hiding}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
-            >
-              {hiding ? 'Hiding…' : 'Hide Post'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Article Body Content <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={8}
+                value={form.body}
+                onChange={(e) => setForm({ ...form, body: e.target.value })}
+                placeholder="Write full article body..."
+                className="input resize-none text-xs font-sans leading-relaxed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Tags (Comma separated)</label>
+              <input
+                type="text"
+                value={form.tags}
+                onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                placeholder="Spiti, Mountain Passes, High Altitude, Photography"
+                className="input text-xs"
+              />
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Hide Modal */}
+      {showHideModal && hidingBlog && (
+        <Modal
+          isOpen={true}
+          onClose={() => setShowHideModal(false)}
+          title={`Executive Unlisting: ${hidingBlog.title}`}
+          description="Master administrative action to remove article from public view."
+          footer={
+            <>
+              <button
+                type="button"
+                onClick={() => setShowHideModal(false)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="hide-blog-form"
+                disabled={hiding || !hideReason.trim()}
+                className="btn-primary text-xs bg-rose-600 hover:bg-rose-700"
+              >
+                {hiding ? 'Unlisting...' : 'Confirm Unlist'}
+              </button>
+            </>
+          }
+        >
+          <form id="hide-blog-form" onSubmit={handleHide} className="space-y-4">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1">
+              <strong>Public Unlisting Action:</strong>
+              <p>This will change status to <strong>HIDDEN</strong>, removing it from public readers immediately while retaining all author revisions.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Reason for Unlisting <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={hideReason}
+                onChange={(e) => setHideReason(e.target.value)}
+                placeholder="e.g. Outdated route permit guidance / content revision needed..."
+                className="input resize-none text-xs"
+              />
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

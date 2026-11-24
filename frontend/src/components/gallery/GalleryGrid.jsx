@@ -20,8 +20,8 @@ export default function GalleryGrid({ items = [] }) {
             className="card-organic group relative rounded-2xl overflow-hidden cursor-pointer border border-bark/20 shadow-nature aspect-[4/3]"
           >
             <img
-              src={item.image}
-              alt={item.title}
+              src={item.image || item.url}
+              alt={item.title || item.caption || 'Himalayan photograph'}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
             />

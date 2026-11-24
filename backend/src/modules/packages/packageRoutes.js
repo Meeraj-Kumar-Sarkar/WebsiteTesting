@@ -20,5 +20,6 @@ router.use(authenticate);
 router.post('/', requirePermission('packages.create'), packageController.createPackage);
 router.patch('/:id', requirePermission('packages.update'), packageController.updatePackage);
 router.patch('/:id/status', requirePermission('packages.disable'), packageController.toggleStatus);
+router.delete('/:id', requirePermission('packages.disable'), packageController.deletePackage);
 
 export default router;

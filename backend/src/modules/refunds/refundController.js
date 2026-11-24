@@ -26,7 +26,7 @@ export const refundController = {
         return res.status(404).json({ error: 'Trip request not found.' });
       }
 
-      const invoice = store.findOne('invoices', i => i.tripRequestId === request.tripRequestId);
+      const invoice = store.findOne('invoices', i => i.tripRequestId === request.tripRequestId || i.tripRequestId === request.id);
       const amountPaid = invoice ? (Number(invoice.amountReceived) || 0) : 0;
 
       const refundId = generateId('REF');

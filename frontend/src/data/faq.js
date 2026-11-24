@@ -14,9 +14,5 @@ export const generalFaqs = [
   {
     question: "How do you handle high-altitude acclimatization?",
     answer: "Safety in the high Himalayas is our highest priority. All high-altitude itineraries (Spiti, Ladakh, Valley of Flowers) include built-in acclimatization rest days. Our private vehicles carry certified pulse oximeters, emergency medical kits, and portable oxygen cylinders."
-  },
-  {
-    question: "Is this website a live booking system?",
-    answer: "This current website is a frontend interactive prototype featuring realistic dummy itineraries, illustrative demonstration pricing, and sample photography. Form submissions and customizations are processed locally for demonstration and will not initiate real financial charges or live agency bookings."
   }
 ];
