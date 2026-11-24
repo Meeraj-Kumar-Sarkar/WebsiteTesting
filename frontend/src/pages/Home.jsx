@@ -149,7 +149,7 @@ export default function Home() {
                 className="relative overflow-hidden rounded-2xl border border-white/20 shadow-nature-xl"
               >
                 <img
-                  src="/hero-himalaya.jpg"
+                  src={`${import.meta.env.BASE_URL}hero-himalaya.jpg`}
                   alt="Himalayan mountain peaks"
                   className="w-full aspect-[5/4] object-cover"
                   loading="eager"

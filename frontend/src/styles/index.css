@@ -74,7 +74,7 @@
   background-image:
     radial-gradient(ellipse 85% 55% at 50% 0%, rgba(16, 61, 11, 0.22) 0%, transparent 70%),
     linear-gradient(180deg, rgba(4, 14, 8, 0.34) 0%, rgba(4, 14, 8, 0.42) 52%, rgba(3, 10, 6, 0.62) 100%),
-    url('/bg-mountain-forest.jpg');
+    var(--forest-bg-image, url('/bg-mountain-forest.jpg'));
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;

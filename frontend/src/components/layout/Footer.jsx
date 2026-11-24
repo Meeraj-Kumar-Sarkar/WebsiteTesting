@@ -29,7 +29,7 @@ export default function Footer() {
           <div className="lg:col-span-2 space-y-5">
             <div className="flex items-center gap-3">
               <img
-                src="/favicon.png"
+                src={`${import.meta.env.BASE_URL}favicon.png`}
                 alt={`${companyName} logo`}
                 className="w-10 h-10 rounded-lg shadow-nature-sm object-contain bg-white"
               />

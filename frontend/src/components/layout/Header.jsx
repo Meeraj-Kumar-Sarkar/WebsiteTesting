@@ -69,7 +69,7 @@ export default function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 select-none shrink-0">
             <img
-              src="/favicon.png"
+              src={`${import.meta.env.BASE_URL}favicon.png`}
               alt="Mountain & Memories logo"
               className="w-9 h-9 rounded-lg shadow-nature-sm object-contain bg-white"
             />

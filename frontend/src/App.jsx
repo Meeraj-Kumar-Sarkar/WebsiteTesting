@@ -18,11 +18,17 @@ import CustomizeTrip from './pages/CustomizeTrip';
 import Contact from './pages/Contact';
 
 export default function App() {
+  const base = import.meta.env.BASE_URL;
+
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={base}>
       <ScrollToTop />
       <div className="relative min-h-screen flex flex-col text-soil font-sans selection:bg-fern selection:text-cream">
-        <div className="forest-backdrop" aria-hidden="true" />
+        <div
+          className="forest-backdrop"
+          style={{ '--forest-bg-image': `url("${base}bg-mountain-forest.jpg")` }}
+          aria-hidden="true"
+        />
         <div className="relative z-10 min-h-screen flex flex-col">
           <Header />
           <main className="flex-grow">
